@@ -2,24 +2,24 @@ export type Cell = "X" | "O" | null;
 
 export type PlayerSymbol = "X" | "O";
 
-export type GameStatus = "waiting" | "playing" | "won" | "draw"
+export type GameStatus = "waiting" | "playing" | "won" | "draw";
+
+export interface Player {
+    id: number | null | undefined;
+    chatId?: number;
+    username?: string;
+    symbol: "X" | "O";
+    messageId?: number;
+}
 
 export interface Game {
     id: string;
-    board: Cell[];
-    currentTurn: PlayerSymbol;
+    board: Cell[][];
+    currentTurn: number;
     status: GameStatus;
     mode: "pve" | "pvp";
-    winner: PlayerSymbol | null;
-    playerX: number | null;
-    playerO: number | null;
-    playerXChatId?: number;
-    playerOChatId?: number;
-    messageIdX?: number; 
-    messageIdO?: number;
+    winner?: number;
     difficulty?: "easy" | "hard";
-    rematchRequests?: number[];
-    creatorUsername?: string;
-    playerXUsername?: string;
-    playerOUsername?: string;
+    rematchCount: number;
+    players: Player[];
 }

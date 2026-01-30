@@ -1,33 +1,20 @@
 import { InlineKeyboard } from "grammy";
-import { Cell, PlayerSymbol, GameStatus } from "../game/types";
+import { Cell } from "../game/types";
+import { CALLBACK_PREFIXES } from "../constants/callback";
+import { BOARD } from "../constants/gameConfig";
 
-export function buildGameKeyboard(board: Cell[], gameId: string){
-    const matrix = new InlineKeyboard()
-    let displayText;
-    for (let i = 0; i < board.length; i++){
-        if (board[i] === "X"){
-            displayText = "❌";
-        } else if (board[i] === "O"){
-            displayText = "⭕";
-        } else {
-            displayText = "⬜️";
+export function buildGameKeyboard(board: Cell[][], gameId: string): InlineKeyboard {
+    const matrix = new InlineKeyboard();
+    for (let r = 0; r < board.length; r++) {
+        for (let c = 0; c < board[r].length; c++) {
+            let displayText;
+            if (board[r][c] === "X") displayText = BOARD.X_CELL_EMOJI;
+            else if (board[r][c] === "O") displayText = BOARD.O_CELL_EMOJI;
+            else displayText = BOARD.EMPTY_CELL_EMOJI;
+            const callBackData = `${CALLBACK_PREFIXES.MOVE}${gameId}:${r}:${c}`;
+            matrix.text(displayText, callBackData);
         }
-        const callBackData = "move" + ":" + gameId + ":" + i
-        matrix.text(displayText, callBackData)
-        if ((i + 1) % 3 === 0){
-            matrix.row()
-        }
+        matrix.row();
     }
-    return matrix
-}   
-
-export function buildRematchKeyboard(gameId: string, count: number, mode: "pve" | "pvp"){
-    if (mode === "pve"){
-        return new InlineKeyboard()
-            .text('Rematch (1/2)', `rematch:${gameId}`)
-    } 
-     else {
-        return new InlineKeyboard()
-        .text(`Rematch (${count}/2)`, `rematch:${gameId}`)
-    }
+    return matrix;
 }
