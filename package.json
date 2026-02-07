@@ -22,9 +22,12 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@prisma/client": "^6.19.2",
     "dotenv": "^17.2.3",
     "grammy": "^1.39.3",
-    "pg": "^8.17.2"
+    "pg": "^8.17.2",
+    "prisma": "^6.19.2",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

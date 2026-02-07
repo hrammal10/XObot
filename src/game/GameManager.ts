@@ -1,5 +1,6 @@
 import { Game, Player } from "./types";
 import { createEmptyBoard } from "./gameLogic";
+import { MESSAGES } from "../constants/userMessages";
 
 const activeGames = new Map<string, Game>();
 
@@ -18,14 +19,19 @@ export function createGame(
     creatorUsername?: string
 ) {
     const creatorIsX = Math.random() < 0.5;
+    const creatorIndex = creatorIsX ? 0 : 1;
+    const otherIndex = creatorIsX ? 1 : 0;
+
     const creator: Player = {
+        index: creatorIndex,
         id: creatorId,
         chatId: creatorChatId,
         username: creatorUsername,
         symbol: creatorIsX ? "X" : "O",
     };
     const otherPlayer: Player = {
-        id: mode === "pve" ? null : undefined,
+        index: otherIndex,
+        id: mode === "pve" ? null : null,
         symbol: creatorIsX ? "O" : "X",
     };
     const game: Game = {
@@ -36,6 +42,7 @@ export function createGame(
         mode,
         difficulty,
         rematchCount: 0,
+        rematchVoters: [],
         players: creatorIsX ? [creator, otherPlayer] : [otherPlayer, creator],
     };
     activeGames.set(game.id, game);
@@ -66,25 +73,26 @@ export function joinGame(
 ) {
     const game = getGame(gameId);
     if (!game) {
-        return { success: false, error: "Game not found" };
+        return { success: false, error: MESSAGES.GAME_NOT_FOUND };
     }
     if (game.status === "playing") {
-        return { success: false, error: "Game is already in progress" };
+        return { success: false, error: MESSAGES.GAME_IN_PROGRESS };
     }
     if (game.status === "won" || game.status === "draw") {
-        return { success: false, error: "Game is already done." };
+        return { success: false, error: MESSAGES.GAME_ALREADY_ENDED};
     }
 
     if (game.players.some((p) => p.id === joinerId)) {
-        return { success: false, error: "Can't join your own game" };
+        return { success: false, error: MESSAGES.CANT_JOIN_OWN_GAME };
     }
 
-    const emptySlotIndex = game.players.findIndex((p) => p.id === undefined);
+    const emptySlotIndex = game.players.findIndex((p) => p.id === null && p.chatId === undefined);
     if (emptySlotIndex === -1) {
-        return { success: false, error: "Game is full" };
+        return { success: false, error: MESSAGES.GAME_FULL };
     }
     const updatedPlayers = [...game.players];
     updatedPlayers[emptySlotIndex] = {
+        index: emptySlotIndex,
         id: joinerId,
         chatId: joinerChatId,
         username: joinerUsername,

@@ -5,7 +5,8 @@ export type PlayerSymbol = "X" | "O";
 export type GameStatus = "waiting" | "playing" | "won" | "draw";
 
 export interface Player {
-    id: number | null | undefined;
+    index: number;
+    id: number | null;
     chatId?: number;
     username?: string;
     symbol: "X" | "O";
@@ -21,5 +22,6 @@ export interface Game {
     winner?: number;
     difficulty?: "easy" | "hard";
     rematchCount: number;
+    rematchVoters?: number[];
     players: Player[];
 }

@@ -4,26 +4,49 @@ export function createEmptyBoard(rows: number, cols: number) {
     return new Array(rows).fill(null).map(() => Array(cols).fill(null));
 }
 
+function checkRow(board: Cell[][], row: number, player: PlayerSymbol): boolean {
+    return board[row].every((cell) => cell === player);
+}
+
+function checkColumn(board: Cell[][], col: number, player: PlayerSymbol): boolean {
+    return board.every((row) => row[col] === player);
+}
+
+function checkMainDiagonal(board: Cell[][], player: PlayerSymbol): boolean {
+    return board.every((row, i) => row[i] === player);
+}
+
+function checkAntiDiagonal(board: Cell[][], player: PlayerSymbol): boolean {
+    const size = board.length;
+    return board.every((row, i) => row[size - 1 - i] === player);
+}
+
 export function checkWinner(board: Cell[][], row: number, col: number): PlayerSymbol | null {
     const player = board[row][col];
     if (!player) return null;
+
     const size = board.length;
-    if (board[row].every((cell) => cell === player)) return player;
-    if (board.every((r) => r[col] === player)) return player;
-    if (row === col && board.every((r, i) => r[i] === player)) return player;
-    if (row + col === size - 1 && board.every((r, i) => r[size - 1 - i] === player)) return player;
+    const isOnMainDiagonal = row === col;
+    const isOnAntiDiagonal = row + col === size - 1;
+
+    if (checkRow(board, row, player)) {
+        return player;
+    }
+    if (checkColumn(board, col, player)) {
+        return player;
+    };
+    if (isOnMainDiagonal && checkMainDiagonal(board, player)) {
+        return player;
+    }
+    if (isOnAntiDiagonal && checkAntiDiagonal(board, player)) {
+        return player;
+    }
+
     return null;
 }
 
-export function checkDraw(board: Cell[][]) {
-    for (let i = 0; i < board.length; i++) {
-        for (let j = 0; j < board[i].length; j++) {
-            if (board[i][j] === null) {
-                return false;
-            }
-        }
-    }
-    return true;
+export function checkDraw(board: Cell[][]): boolean {
+    return board.every((row) => row.every((cell) => cell !== null));
 }
 
 export function isCellEmpty(board: Cell[][], row: number, col: number) {
@@ -106,29 +129,18 @@ function minimax(
     if (winner) {
         return evaluateBoard(board, botSymbol, lastRow, lastCol, depth);
     }
-    if (checkDraw(board)) return 0;
-    const humanSymbol = botSymbol === "X" ? "O" : "X";
-    if (isMaximizing) {
-        let bestScore = -Infinity;
-        const emptyPos = getEmptyPositions(board);
-        for (const positions of emptyPos) {
-            const [r, c] = positions;
-            const newBoard = makeMove(board, r, c, botSymbol);
-            const score = minimax(newBoard, false, botSymbol, r, c, depth + 1);
-            bestScore = Math.max(bestScore, score);
-        }
-        return bestScore;
-    } else {
-        let bestScore = +Infinity;
-        const emptyPos = getEmptyPositions(board);
-        for (const positions of emptyPos) {
-            const [r, c] = positions;
-            const newBoard = makeMove(board, r, c, humanSymbol);
-            const score = minimax(newBoard, true, botSymbol, r, c, depth + 1);
-            bestScore = Math.min(bestScore, score);
-        }
-        return bestScore;
+    if (checkDraw(board)) {
+        return 0;
     }
+    
+    const emptyPos = getEmptyPositions(board);
+    const symbol = isMaximizing ? botSymbol : (botSymbol === "X" ? "O" : "X");
+    const scores = emptyPos.map(([r, c]) => {
+        const newBoard = makeMove(board, r, c, symbol);
+        return minimax(newBoard, !isMaximizing, botSymbol, r, c, depth + 1);
+    });
+
+    return isMaximizing ? Math.max(...scores) : Math.min(...scores);
 }
 
 // depending on the minimax algorithm, we find the best move for the bot to make

@@ -1,46 +1,31 @@
-import { pool } from "../connection";
+import { PrismaClient, Player } from '../../generated/prisma/client';
 
-export interface PlayerDB {
-    id: number;
-    telegram_id: number;
-    username?: string;
-    created_at: Date;
-}
+const prisma = new PrismaClient();
 
-const queries = {
-    FIND_PLAYER: `
-        SELECT * FROM players WHERE telegram_id = $1
-    `,
-    UPDATE_USERNAME: `
-        UPDATE players SET username = $1 WHERE telegram_id = $2 RETURNING *
-    `,
-    INSERT_PLAYER: `
-        INSERT INTO players (telegram_id, username)
-        VALUES ($1, $2)
-        RETURNING *
-    `
-};
+export type PlayerDB = Player;
 
 export async function createOrGetPlayer(
     telegramId: number,
     username?: string
 ): Promise<PlayerDB> {
-    const existing = await findPlayer(telegramId);
+    const telegramIdBigInt = BigInt(telegramId);
+    const existing = await findPlayer(telegramIdBigInt);
     if (existing) {
         return syncUsername(existing, username);
     }
-    return insertNewPlayer(telegramId, username);
+    return insertNewPlayer(telegramIdBigInt, username);
 }
 
 export async function getPlayerById(
     telegramId: number
 ): Promise<PlayerDB | null> {
-    return findPlayer(telegramId);
+    return findPlayer(BigInt(telegramId));
 }
 
-async function findPlayer(telegramId: number): Promise<PlayerDB | null> {
-    const result = await pool.query(queries.FIND_PLAYER, [telegramId]);
-    return result.rows[0] || null;
+async function findPlayer(telegramId: bigint): Promise<PlayerDB | null> {
+    return prisma.player.findUnique({
+        where: { telegramId }
+    });
 }
 
 async function syncUsername(
@@ -50,18 +35,20 @@ async function syncUsername(
     if (!newUsername || player.username === newUsername) {
         return player;
     }
-    const result = await pool.query(queries.UPDATE_USERNAME, [
-        newUsername,
-        player.telegram_id
-    ]);
-
-    return result.rows[0];
+    return prisma.player.update({
+        where: { telegramId: player.telegramId },
+        data: { username: newUsername }
+    });
 }
 
 async function insertNewPlayer(
-    telegramId: number,
+    telegramId: bigint,
     username?: string
 ): Promise<PlayerDB> {
-    const result = await pool.query(queries.INSERT_PLAYER, [telegramId, username]);
-    return result.rows[0];
+    return prisma.player.create({
+        data: {
+            telegramId,
+            username
+        }
+    });
 }

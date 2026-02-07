@@ -4,3 +4,5 @@ dist
 *.sqlite
 *.db
 postgres_data/
+/src/generated/prisma
+logs/

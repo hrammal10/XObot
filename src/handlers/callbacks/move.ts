@@ -11,6 +11,7 @@ import { saveCompletedGame } from "../../database/models/gameModel";
 import { updatePlayerStats } from "../../database/models/playerStatsModel";
 import { createOrGetPlayer } from "../../database/models/playerModel";
 import { formatPvPMessage } from "../../utils/messageFormatters";
+import logger from "../../utils/logger";
 
 interface MoveResult {
     updatedState: {
@@ -25,14 +26,25 @@ interface MoveResult {
     winner: number | undefined;
 }
 
+
 export async function moveCallback(ctx: CallbackQueryContext<Context>, bot: Bot) {
     const { gameId, row, col } = parseMoveData(ctx.callbackQuery.data);
     const game = getGame(gameId);
-    if (!game) return notify(ctx, MESSAGES.GAME_NOT_FOUND);
-    if (!isGameActive(game)) return notify(ctx, MESSAGES.GAME_ALREADY_ENDED);
+    
+    if (!game) {
+        return notify(ctx, MESSAGES.GAME_NOT_FOUND);
+    }
+    if (!isGameActive(game)) {
+        return notify(ctx, MESSAGES.GAME_ALREADY_ENDED);
+    }
     const userId = ctx.from.id;
-    if (!isPlayerTurn(game, userId)) return notify(ctx, MESSAGES.NOT_YOUR_TURN);
-    if (!isCellEmpty(game.board, row, col)) return notify(ctx, MESSAGES.CELL_TAKEN);
+    if (!isPlayerTurn(game, userId)) {
+        return notify(ctx, MESSAGES.NOT_YOUR_TURN);
+    }
+    if (!isCellEmpty(game.board, row, col)) {
+        return notify(ctx, MESSAGES.CELL_TAKEN);
+    }
+    
     const result = applyPlayerMove(game, row, col, userId);
     updateGame(gameId, result.updatedState);
     await handlePostMove(ctx, bot, gameId, result);
@@ -153,37 +165,50 @@ function addRematchButton(keyboard: InlineKeyboard, game: Game): void {
 
 async function handleGameCompletion(game: Game, board: Cell[][], winner: number | null, status: "won" | "draw"): Promise<void> {
     if (game.mode !== "pvp") return;
-    await createOrGetPlayer(game.players[0].id!, game.players[0].username);
-    await createOrGetPlayer(game.players[1].id!, game.players[1].username);
+    
     const players = game.players
         .filter((p) => p.id !== null)
         .map((p) => ({
-            telegramId: p.id!,
+            telegramId: BigInt(p.id!),
             symbol: p.symbol,
             isWinner: p.id === winner
         }));
-    await saveCompletedGame(game.mode, board, winner, status, players);
-    await updatePlayerStats(game.players[0].id!, game.players[1].id!, winner);
+    const winnerBigInt = winner !== null ? BigInt(winner) : null;
+
+    await Promise.all([
+        createOrGetPlayer(game.players[0].id!, game.players[0].username),
+        createOrGetPlayer(game.players[1].id!, game.players[1].username),
+        saveCompletedGame(game.mode, board, winnerBigInt, status, players),
+        updatePlayerStats(game.players[0].id!, game.players[1].id!, winner)
+    ]);
 }
 async function updatePvPMessages(bot: Bot, gameId: string, statusText: string, keyboard: InlineKeyboard): Promise<void> {
     const updatedGame = getGame(gameId);
-    if (!updatedGame) return;
-    for (const player of updatedGame.players) {
-        if (!player.chatId || !player.messageId || player.id === null || player.id === undefined) continue;
-        
+    if (!updatedGame) {
+        return
+    };
+
+    const validPlayers = updatedGame.players.filter(
+        (player): player is Player & { id: number; chatId: number; messageId: number } =>
+            player.chatId !== undefined && 
+            player.messageId !== undefined && 
+            player.id !== null && 
+            player.id !== undefined
+    );
+
+    const updatePromises = validPlayers.map(async player => {
         const opponent = getOpponent(updatedGame, player.id);
         const opponentText = opponent ? `vs @${opponent.username}\n` : "";
         const baseStatus = `${opponentText}${statusText}`;
         const fullMessage = await formatPvPMessage(updatedGame, player.id, baseStatus);
-        try {
-            await bot.api.editMessageText(
-                player.chatId,
-                player.messageId,
-                fullMessage,
-                { reply_markup: keyboard }
-            );
-        } catch (e) {
-            console.error(`Failed to update board for player ${player.id}:`, e);
-        }
-    }
+        
+        return bot.api.editMessageText(
+            player.chatId,
+            player.messageId,
+            fullMessage,
+            { reply_markup: keyboard }
+        ).catch(e => logger.error(`Failed to update board for player ${player.id}:`, e));
+    });
+
+    await Promise.all(updatePromises);
 }

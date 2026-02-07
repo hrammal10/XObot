@@ -9,6 +9,7 @@ import { buildGameKeyboard } from "../../ui/keyboard";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
 import { getStatsText } from "../../utils/messageFormatters";
 import { Game, Cell, Player } from "../../game/types";
+import logger from "../../utils/logger";
 
 
 export async function rematchCallback(ctx: CallbackQueryContext<Context>, bot: Bot) {
@@ -98,39 +99,51 @@ async function handlePvPRematch(
         await ctx.answerCallbackQuery({ text: MESSAGES.NOT_IN_GAME, show_alert: true });
         return;
     }
-    const newCount = game.rematchCount + 1;
-    const totalPlayers = game.players.filter((p) => p.id !== null).length;
-    updateGame(gameId, { rematchCount: newCount });
-    if (newCount === 1) {
-        await handleFirstPvPRematchVote(ctx, bot, game, gameId);
+    
+    const hasAlreadyVoted = game.rematchVoters?.includes(userId);
+    if (hasAlreadyVoted) {
+        await ctx.answerCallbackQuery({ text: "You already voted for rematch!", show_alert: true });
         return;
     }
-    if (newCount > totalPlayers / 2) {
-        await startNewPvPGame(ctx, bot, game, gameId);
+
+    const voters = [...(game.rematchVoters || []), userId];
+    const newCount = voters.length;
+    const totalPlayers = game.players.filter(p => p.id !== null).length;
+    const votesNeeded = Math.floor(totalPlayers / 2) + 1; // Strictly greater than half
+
+    updateGame(gameId, { rematchCount: newCount, rematchVoters: voters });
+    
+    if (newCount < votesNeeded) {
+        await handlePartialRematchVote(ctx, bot, game, gameId, newCount, votesNeeded);
         return;
     }
+    
+    await startNewPvPGame(ctx, bot, game, gameId);
 }
 
-async function handleFirstPvPRematchVote(
+async function handlePartialRematchVote(
     ctx: CallbackQueryContext<Context>,
     bot: Bot,
     game: Game,
-    gameId: string
+    gameId: string,
+    currentVotes: number,
+    votesNeeded: number
 ): Promise<void> {
-    await ctx.answerCallbackQuery({ text: MESSAGES.REMATCH_REQUESTED });
     const keyboard = buildGameKeyboard(game.board, gameId);
     keyboard.row();
-    keyboard.text("Rematch (1/2)", `${CALLBACK_PREFIXES.REMATCH}${gameId}`);
-    for (const p of game.players) {
-        if (!p.chatId || !p.messageId || p.id === null) continue;
-        try {
-            await bot.api.editMessageReplyMarkup(p.chatId, p.messageId, {
-                reply_markup: keyboard,
-            });
-        } catch (e) {
-            console.error(`Failed to update rematch button:`, e);
-        }
-    }
+    keyboard.text(`Rematch (${currentVotes}/${votesNeeded})`, `${CALLBACK_PREFIXES.REMATCH}${gameId}`);
+
+    const updatePromises = game.players
+        .filter(p => p.chatId && p.messageId && p.id !== null)
+        .map(p => 
+            bot.api.editMessageReplyMarkup(p.chatId!, p.messageId!, { reply_markup: keyboard })
+                .catch(e => logger.error(`Failed to update rematch button:`, e))
+        );
+
+    await Promise.all([
+        ctx.answerCallbackQuery({ text: MESSAGES.REMATCH_REQUESTED }),
+        ...updatePromises
+    ]);
 }
 
 async function startNewPvPGame(
@@ -139,22 +152,43 @@ async function startNewPvPGame(
     game: Game,
     gameId: string
 ): Promise<void> {
-    const [p1, p2] = game.players;
-    if (!p1.id || !p1.chatId || !p2.id || !p2.chatId) return;
-    const newGame = createGame(p1.id, p1.chatId, "pvp", BOARD.ROWS, BOARD.COLS, undefined, p1.username);
-    const updatedPlayers = assignSecondPlayer(newGame.players, p2);
+    const [oldP1, oldP2] = game.players;
+    if (!oldP1.id || !oldP1.chatId || !oldP2.id || !oldP2.chatId) return;
+    
+    const newGame = createGame(oldP1.id, oldP1.chatId, "pvp", BOARD.ROWS, BOARD.COLS, undefined, oldP1.username);
+    const updatedPlayers = newGame.players.map(player => {
+        if (player.id === oldP1.id) {
+            return { ...player, messageId: oldP1.messageId };
+        }
+        if (player.id === null) {
+            // empty slot - assign oldP2
+            return {
+                ...player,
+                id: oldP2.id,
+                chatId: oldP2.chatId,
+                username: oldP2.username,
+                messageId: oldP2.messageId,
+            };
+        }
+        return player;
+    });
+
     updateGame(newGame.id, { players: updatedPlayers, status: "playing" });
     const freshGame = getGame(newGame.id)!;
     const keyboard = buildGameKeyboard(freshGame.board, freshGame.id);
-    await updateBothPlayersMessages(bot, freshGame, keyboard);
+
+    await Promise.all([
+        updateBothPlayersMessages(bot, freshGame, keyboard),
+        ctx.answerCallbackQuery({ text: MESSAGES.REMATCH_STARTED_TEXT })
+    ]);
     deleteGame(gameId);
-    await ctx.answerCallbackQuery({ text: MESSAGES.REMATCH_STARTED_TEXT });
 }
 
 function assignSecondPlayer(players: Player[], p2: Player): Player[] {
-    const emptyIndex = players.findIndex((p) => p.id === undefined);
+    const emptyIndex = players.findIndex((p) => p.id === null && p.chatId === undefined);
     const updated = [...players];
     updated[emptyIndex] = {
+        index: emptyIndex,
         id: p2.id,
         chatId: p2.chatId,
         username: p2.username,
@@ -165,21 +199,20 @@ function assignSecondPlayer(players: Player[], p2: Player): Player[] {
 }
 
 async function updateBothPlayersMessages(bot: Bot, game: Game, keyboard: InlineKeyboard): Promise<void> {
-    for (const player of game.players) {
-        if (!player.chatId || !player.messageId || player.id === null || player.id === undefined) continue;
-        const opponent = getOpponent(game, player.id);
-        const symbol = getSymbolEmoji(player.symbol);
-        const isTurn = game.currentTurn === game.players.indexOf(player);
-        const turnText = isTurn ? MESSAGES.YOUR_TURN : MESSAGES.WAITING_FOR_OPPONENT;
-        const stats = opponent?.id && player.id ? await getStatsText(player.id, opponent.id) : "";
-        const base = MESSAGES.REMATCH_STARTED_FULL(opponent?.username, symbol, turnText);
-        const fullMessage = `${stats}\n\n${base}`;
-        try {
-            await bot.api.editMessageText(player.chatId, player.messageId, fullMessage, {
-                reply_markup: keyboard,
-            });
-        } catch (e) {
-            console.error(`Failed to update rematch board for player ${player.id}:`, e);
-        }
-    }
+    const updatePromises = game.players
+        .filter(player => player.chatId && player.messageId && player.id !== null && player.id !== undefined)
+        .map(async player => {
+            const opponent = getOpponent(game, player.id!);
+            const symbol = getSymbolEmoji(player.symbol);
+            const isTurn = game.currentTurn === game.players.indexOf(player);
+            const turnText = isTurn ? MESSAGES.YOUR_TURN : MESSAGES.WAITING_FOR_OPPONENT;
+            const stats = opponent?.id ? await getStatsText(player.id!, opponent.id) : "";
+            const base = MESSAGES.REMATCH_STARTED_FULL(opponent?.username, symbol, turnText);
+            const fullMessage = `${stats}\n\n${base}`;
+
+            return bot.api.editMessageText(player.chatId!, player.messageId!, fullMessage, { reply_markup: keyboard })
+                .catch(e => logger.error(`Failed to update rematch board for player ${player.id}:`, e));
+        });
+
+    await Promise.all(updatePromises);
 }

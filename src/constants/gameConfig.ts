@@ -1,4 +1,4 @@
-export const BOARD = {
+export const BOARD = Object.freeze(Object.seal({
     ROWS: 3,
     COLS: 3,
 
@@ -8,4 +8,4 @@ export const BOARD = {
     X_CELL_EMOJI: "❌",
     O_CELL_EMOJI: "⭕",
     LOADING_EMOJI: "⏳",
-} as const;
+} as const));

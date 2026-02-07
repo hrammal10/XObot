@@ -1,0 +1,67 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @unique @map("telegram_id")
+  username   String?  @db.VarChar(255)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([telegramId], name: "idx_players_telegram_id")
+  @@map("players")
+}
+
+model Game {
+  id               Int          @id @default(autoincrement())
+  gameMode         String       @map("game_mode") @db.VarChar(10)
+  boardState       String       @map("board_state") @db.Text
+  winnerTelegramId BigInt?      @map("winner_telegram_id")
+  status           String       @db.VarChar(10)
+  createdAt        DateTime     @default(now()) @map("created_at")
+  completedAt      DateTime     @default(now()) @map("completed_at")
+  players          GamePlayer[]
+
+  @@index([winnerTelegramId], name: "idx_games_winner")
+  @@map("games")
+}
+
+model GamePlayer {
+  id               Int    @id @default(autoincrement())
+  gameId           Int    @map("game_id")
+  playerTelegramId BigInt @map("player_telegram_id")
+  symbol           String @db.Char(1)
+  isWinner         Boolean @default(false) @map("is_winner")
+  game             Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId], name: "idx_game_players_game_id")
+  @@index([playerTelegramId], name: "idx_game_players_player_id")
+  @@map("game_players")
+}
+
+model PlayerStats {
+  id                 Int      @id @default(autoincrement())
+  player1TelegramId  BigInt   @map("player1_telegram_id")
+  player2TelegramId  BigInt   @map("player2_telegram_id")
+  player1Wins        Int      @default(0) @map("player1_wins")
+  player2Wins        Int      @default(0) @map("player2_wins")
+  draws              Int      @default(0)
+  totalGames         Int      @default(0) @map("total_games")
+  lastPlayed         DateTime @default(now()) @map("last_played")
+
+  @@unique([player1TelegramId, player2TelegramId])
+  @@index([player1TelegramId, player2TelegramId], name: "idx_player_stats_players")
+  @@map("player_stats")
+}

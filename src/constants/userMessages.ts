@@ -8,6 +8,8 @@ export const MESSAGES = {
     GAME_ALREADY_ENDED: "Game already ended!",
     GAME_IN_PROGRESS: "Game is still in progress",
     NOT_IN_GAME: "You are not in this game",
+    CANT_JOIN_OWN_GAME: "Can't join your own game",
+    GAME_FULL: "Game is full",
 
     WELCOME:
         "You ready for a game of Tic-Tac_Toe?\nType /play to start a game against the Master.\nType /challenge to challenge your friends!",

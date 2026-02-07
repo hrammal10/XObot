@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Bot } from "grammy";
 import { startCommand } from "./handlers/commands/start";
 import { playCommand } from "./handlers/commands/play";
@@ -7,11 +8,11 @@ import { moveCallback } from "./handlers/callbacks/move";
 import { rematchCallback } from "./handlers/callbacks/rematch";
 import { inviteCallback } from "./handlers/callbacks/invite";
 import { CALLBACK_PREFIXES } from "./constants/callback";
-import { testConnection } from "./database/connection";
+import { testDbConnection } from "./database/connection";
 
 async function startBot(){
 
-    await testConnection();
+    await testDbConnection();
     const bot = new Bot(process.env.BOT_TOKEN!);
     
     bot.command("start", (ctx) => startCommand(ctx, bot));
