@@ -23,8 +23,8 @@ export async function formatPvPMessage(
         return baseMessage;
     }
 
-    const currentPlayer = game.players.find(p => p.id === currentPlayerId);
-    const opponent = game.players.find(p => p.id !== null && p.id !== currentPlayerId);
+    const currentPlayer = game.players.find((p) => p.id === currentPlayerId);
+    const opponent = game.players.find((p) => p.id !== null && p.id !== currentPlayerId);
 
     if (!currentPlayer?.id || !opponent?.id) {
         return baseMessage;

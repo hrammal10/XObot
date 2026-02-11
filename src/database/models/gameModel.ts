@@ -1,20 +1,20 @@
-import { PrismaClient } from '../../generated/prisma/client';
-import { Cell } from '../../game/types';
-import logger from '../../utils/logger';
+import { PrismaClient } from "../../generated/prisma/client";
+import { Cell } from "../../game/types";
+import logger from "../../utils/logger";
 
 const prisma = new PrismaClient();
 
 export interface GamePlayer {
     telegramId: bigint;
-    symbol: 'X' | 'O';
+    symbol: "X" | "O";
     isWinner: boolean;
 }
 
 export async function saveCompletedGame(
-    gameMode: 'pve' | 'pvp',
+    gameMode: "pve" | "pvp",
     boardState: Cell[][],
     winnerTelegramId: bigint | null,
-    status: 'won' | 'draw',
+    status: "won" | "draw",
     players: GamePlayer[]
 ): Promise<number | null> {
     if (players.length === 0) {
@@ -29,13 +29,13 @@ export async function saveCompletedGame(
             winnerTelegramId,
             status,
             players: {
-                create: players.map(player => ({
+                create: players.map((player) => ({
                     playerTelegramId: player.telegramId,
                     symbol: player.symbol,
-                    isWinner: player.isWinner
-                }))
-            }
-        }
+                    isWinner: player.isWinner,
+                })),
+            },
+        },
     });
 
     return game.id;
@@ -46,15 +46,15 @@ export async function getGameHistory(player1Id: bigint, player2Id: bigint): Prom
         where: {
             AND: [
                 { players: { some: { playerTelegramId: player1Id } } },
-                { players: { some: { playerTelegramId: player2Id } } }
-            ]
+                { players: { some: { playerTelegramId: player2Id } } },
+            ],
         },
         include: {
-            players: true
+            players: true,
         },
         orderBy: {
-            completedAt: 'desc'
-        }
+            completedAt: "desc",
+        },
     });
 
     return games;

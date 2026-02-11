@@ -34,7 +34,7 @@ export function checkWinner(board: Cell[][], row: number, col: number): PlayerSy
     }
     if (checkColumn(board, col, player)) {
         return player;
-    };
+    }
     if (isOnMainDiagonal && checkMainDiagonal(board, player)) {
         return player;
     }
@@ -114,8 +114,8 @@ function evaluateBoard(
 // added depth to minimax to pick the cell that produces a win with the least amount of moves possible
 // EXPLANATION: for anyone reading this and doesn't understand depth, think about the current state of the board as a parent node and whatever cell the bot picks as a node branching from it
 // the bot will simulate every single possible cell decision it could take and it will see how many moves it will take to win (simulating opponent's decision as well)
-// and "depth" here will represent the how "deep" we are into the tree, and then the bot will ultimately pick the path from the parent node (current state of board) to the node 
-// representing the winning board 
+// and "depth" here will represent the how "deep" we are into the tree, and then the bot will ultimately pick the path from the parent node (current state of board) to the node
+// representing the winning board
 
 function minimax(
     board: Cell[][],
@@ -132,9 +132,9 @@ function minimax(
     if (checkDraw(board)) {
         return 0;
     }
-    
+
     const emptyPos = getEmptyPositions(board);
-    const symbol = isMaximizing ? botSymbol : (botSymbol === "X" ? "O" : "X");
+    const symbol = isMaximizing ? botSymbol : botSymbol === "X" ? "O" : "X";
     const scores = emptyPos.map(([r, c]) => {
         const newBoard = makeMove(board, r, c, symbol);
         return minimax(newBoard, !isMaximizing, botSymbol, r, c, depth + 1);

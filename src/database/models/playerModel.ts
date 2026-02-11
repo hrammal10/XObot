@@ -1,13 +1,10 @@
-import { PrismaClient, Player } from '../../generated/prisma/client';
+import { PrismaClient, Player } from "../../generated/prisma/client";
 
 const prisma = new PrismaClient();
 
 export type PlayerDB = Player;
 
-export async function createOrGetPlayer(
-    telegramId: number,
-    username?: string
-): Promise<PlayerDB> {
+export async function createOrGetPlayer(telegramId: number, username?: string): Promise<PlayerDB> {
     const telegramIdBigInt = BigInt(telegramId);
     const existing = await findPlayer(telegramIdBigInt);
     if (existing) {
@@ -16,39 +13,31 @@ export async function createOrGetPlayer(
     return insertNewPlayer(telegramIdBigInt, username);
 }
 
-export async function getPlayerById(
-    telegramId: number
-): Promise<PlayerDB | null> {
+export async function getPlayerById(telegramId: number): Promise<PlayerDB | null> {
     return findPlayer(BigInt(telegramId));
 }
 
 async function findPlayer(telegramId: bigint): Promise<PlayerDB | null> {
     return prisma.player.findUnique({
-        where: { telegramId }
+        where: { telegramId },
     });
 }
 
-async function syncUsername(
-    player: PlayerDB,
-    newUsername?: string
-): Promise<PlayerDB> {
+async function syncUsername(player: PlayerDB, newUsername?: string): Promise<PlayerDB> {
     if (!newUsername || player.username === newUsername) {
         return player;
     }
     return prisma.player.update({
         where: { telegramId: player.telegramId },
-        data: { username: newUsername }
+        data: { username: newUsername },
     });
 }
 
-async function insertNewPlayer(
-    telegramId: bigint,
-    username?: string
-): Promise<PlayerDB> {
+async function insertNewPlayer(telegramId: bigint, username?: string): Promise<PlayerDB> {
     return prisma.player.create({
         data: {
             telegramId,
-            username
-        }
+            username,
+        },
     });
 }

@@ -79,7 +79,7 @@ export function joinGame(
         return { success: false, error: MESSAGES.GAME_IN_PROGRESS };
     }
     if (game.status === "won" || game.status === "draw") {
-        return { success: false, error: MESSAGES.GAME_ALREADY_ENDED};
+        return { success: false, error: MESSAGES.GAME_ALREADY_ENDED };
     }
 
     if (game.players.some((p) => p.id === joinerId)) {

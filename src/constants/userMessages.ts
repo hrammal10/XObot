@@ -62,4 +62,20 @@ export const MESSAGES = {
     UNEXPECTED_ERROR: "An unexpected error occurred. Please try again.",
 
     INVITE_LINK_TEXT: (inviteLink: string) => `Join my Tic Tac Toe game here: ${inviteLink}!`,
+
+    NO_GAMES_PLAYED_HISTORY: "📜 You haven't played any games yet!",
+    HISTORY_HEADER: "📜 *Your Game History*\n\n",
+    HISTORY_STATS: (wins: number, losses: number, draws: number) =>
+        `📊 *Overall:* ${wins}W - ${losses}L - ${draws}D\n\n`,
+    RECENT_GAMES_HEADER: "*Recent Games:*\n",
+    HISTORY_LOAD_ERROR: "❌ Failed to load history. Try again later.",
+
+    NO_GAMES_PLAYED_LEADERBOARD: "🏆 No games played yet!",
+    LEADERBOARD_HEADER: "🏆 *Leaderboard*\n\n",
+
+    UNKNOWN_PLAYER: "Unknown",
+    BOT_OPPONENT: "Bot",
+    DATE_TODAY: "Today",
+    DATE_YESTERDAY: "Yesterday",
+    DATE_DAYS_AGO: (days: number) => `${days}d ago`,
 } as const;

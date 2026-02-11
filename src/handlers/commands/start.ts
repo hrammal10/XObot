@@ -39,14 +39,14 @@ export async function startCommand(ctx: CommandContext<Context>, bot: Bot): Prom
         joiner,
         opponent,
         game,
-        keyboard
+        keyboard,
     });
     await updateJoinerMessageId(gameId, joinerMessage.message_id, joiner.id!);
     await updateCreatorMessage(bot, {
         game,
         joiner,
         opponent,
-        keyboard
+        keyboard,
     });
 }
 
@@ -58,7 +58,7 @@ function extractUser(ctx: CommandContext<Context>) {
     return {
         id: ctx.from!.id,
         chatId: ctx.chat!.id,
-        username: ctx.from!.username ?? undefined
+        username: ctx.from!.username ?? undefined,
     };
 }
 
@@ -83,7 +83,7 @@ async function sendJoinerMessage(
         joiner,
         opponent,
         game,
-        keyboard
+        keyboard,
     }: {
         statsText: string;
         joiner: Player;
@@ -109,9 +109,7 @@ async function updateJoinerMessageId(gameId: string, messageId: number, joinerId
     const game = getGame(gameId);
     if (!game) return;
 
-    const updatedPlayers = game.players.map((p) =>
-        p.id === joinerId ? { ...p, messageId } : p
-    );
+    const updatedPlayers = game.players.map((p) => (p.id === joinerId ? { ...p, messageId } : p));
 
     updateGame(gameId, { players: updatedPlayers });
 }
@@ -122,7 +120,7 @@ async function updateCreatorMessage(
         game,
         joiner,
         opponent,
-        keyboard
+        keyboard,
     }: {
         game: Game;
         joiner: Player;
@@ -136,18 +134,11 @@ async function updateCreatorMessage(
     const isTurn = game.currentTurn === game.players.indexOf(opponent);
 
     const statsText = await getStatsText(opponent.id, joiner.id);
-    const baseMessage = MESSAGES.OPPONENT_JOINED(
-        joiner.username,
-        symbol,
-        isTurn
-    );
+    const baseMessage = MESSAGES.OPPONENT_JOINED(joiner.username, symbol, isTurn);
 
     const messageText = `${statsText}\n\n${baseMessage}`;
 
-    await bot.api.editMessageText(
-        opponent.chatId,
-        opponent.messageId,
-        messageText,
-        { reply_markup: keyboard }
-    );
+    await bot.api.editMessageText(opponent.chatId, opponent.messageId, messageText, {
+        reply_markup: keyboard,
+    });
 }

@@ -9,11 +9,14 @@ import { buildGameKeyboard } from "../../ui/keyboard";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
 import { Game, Cell, Player } from "../../game/types";
 
-export async function difficultyCallback(ctx: CallbackQueryContext<Context>, bot: Bot): Promise<void> {
+export async function difficultyCallback(
+    ctx: CallbackQueryContext<Context>,
+    bot: Bot
+): Promise<void> {
     if (!ctx.from) {
         await ctx.answerCallbackQuery({
             text: MESSAGES.USER_NOT_IDENTIFIED,
-            show_alert: true
+            show_alert: true,
         });
         return;
     }
@@ -22,13 +25,16 @@ export async function difficultyCallback(ctx: CallbackQueryContext<Context>, bot
     if (!user.chatId) {
         await ctx.answerCallbackQuery({
             text: MESSAGES.CHAT_NOT_FOUND,
-            show_alert: true
+            show_alert: true,
         });
         return;
     }
 
     const difficulty = extractDifficulty(ctx.callbackQuery.data);
-    const game = createPvEGame({ id: user.id, chatId: user.chatId, username: user.username }, difficulty);
+    const game = createPvEGame(
+        { id: user.id, chatId: user.chatId, username: user.username },
+        difficulty
+    );
     const { boardToShow, currentTurn } = computeInitialBoard(game);
     const keyboard = buildGameKeyboard(boardToShow, game.id);
     const userSymbol = getSymbolEmoji(getPlayerById(game, user.id)!.symbol);
@@ -41,7 +47,7 @@ function extractUser(ctx: CallbackQueryContext<Context>) {
     return {
         id: ctx.from!.id,
         chatId: ctx.chat?.id,
-        username: ctx.from!.username
+        username: ctx.from!.username,
     };
 }
 
@@ -53,22 +59,15 @@ function createPvEGame(
     user: { id: number; chatId: number; username?: string },
     difficulty: "easy" | "hard"
 ) {
-    return createGame(
-        user.id,
-        user.chatId,
-        "pve",
-        BOARD.ROWS,
-        BOARD.COLS,
-        difficulty
-    );
+    return createGame(user.id, user.chatId, "pve", BOARD.ROWS, BOARD.COLS, difficulty);
 }
 
-function computeInitialBoard(game: Game): { boardToShow: Cell[][], currentTurn: number } {
+function computeInitialBoard(game: Game): { boardToShow: Cell[][]; currentTurn: number } {
     const bot = game.players.find((p) => p.id === null);
     if (!bot || bot.symbol !== "X") {
         return {
             boardToShow: game.board,
-            currentTurn: game.currentTurn
+            currentTurn: game.currentTurn,
         };
     }
     const [r, c] = getBotMove(game.board, game.difficulty!, "X");
@@ -76,7 +75,7 @@ function computeInitialBoard(game: Game): { boardToShow: Cell[][], currentTurn: 
     const nextTurn = getNextTurnIndex({ ...game, currentTurn: game.currentTurn });
     return {
         boardToShow: updatedBoard,
-        currentTurn: nextTurn
+        currentTurn: nextTurn,
     };
 }
 
@@ -86,7 +85,7 @@ async function sendDifficultyMessage(
     keyboard: InlineKeyboard
 ) {
     return ctx.reply(MESSAGES.YOU_ARE_SYMBOL(symbol), {
-        reply_markup: keyboard
+        reply_markup: keyboard,
     });
 }
 
@@ -97,12 +96,10 @@ function updateGameState(
     userId: number,
     messageId: number
 ): void {
-    const updatedPlayers = game.players.map((p) =>
-        p.id === userId ? { ...p, messageId } : p
-    );
+    const updatedPlayers = game.players.map((p) => (p.id === userId ? { ...p, messageId } : p));
     updateGame(game.id, {
         board,
         currentTurn,
-        players: updatedPlayers
+        players: updatedPlayers,
     });
 }

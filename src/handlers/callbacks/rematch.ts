@@ -11,7 +11,6 @@ import { getStatsText } from "../../utils/messageFormatters";
 import { Game, Cell, Player } from "../../game/types";
 import logger from "../../utils/logger";
 
-
 export async function rematchCallback(ctx: CallbackQueryContext<Context>, bot: Bot) {
     const gameId = extractGameId(ctx.callbackQuery.data);
     const game = getGame(gameId);
@@ -36,7 +35,6 @@ async function notifyGameNotFound(ctx: CallbackQueryContext<Context>) {
 async function notifyChatNotFound(ctx: CallbackQueryContext<Context>) {
     await ctx.answerCallbackQuery({ text: MESSAGES.CHAT_NOT_FOUND, show_alert: true });
 }
-
 
 async function handlePvERematch(
     ctx: CallbackQueryContext<Context>,
@@ -68,7 +66,7 @@ function isGameFinished(game: Game): boolean {
     return game.status === "won" || game.status === "draw";
 }
 
-function computeInitialPvEBoard(newGame: Game): { boardToShow: Cell[][], currentTurn: number } {
+function computeInitialPvEBoard(newGame: Game): { boardToShow: Cell[][]; currentTurn: number } {
     const botPlayer = newGame.players.find((p) => p.id === null);
     if (!botPlayer || botPlayer.symbol !== "X") {
         return { boardToShow: newGame.board, currentTurn: newGame.currentTurn };
@@ -99,7 +97,7 @@ async function handlePvPRematch(
         await ctx.answerCallbackQuery({ text: MESSAGES.NOT_IN_GAME, show_alert: true });
         return;
     }
-    
+
     const hasAlreadyVoted = game.rematchVoters?.includes(userId);
     if (hasAlreadyVoted) {
         await ctx.answerCallbackQuery({ text: "You already voted for rematch!", show_alert: true });
@@ -108,16 +106,16 @@ async function handlePvPRematch(
 
     const voters = [...(game.rematchVoters || []), userId];
     const newCount = voters.length;
-    const totalPlayers = game.players.filter(p => p.id !== null).length;
+    const totalPlayers = game.players.filter((p) => p.id !== null).length;
     const votesNeeded = Math.floor(totalPlayers / 2) + 1; // Strictly greater than half
 
     updateGame(gameId, { rematchCount: newCount, rematchVoters: voters });
-    
+
     if (newCount < votesNeeded) {
         await handlePartialRematchVote(ctx, bot, game, gameId, newCount, votesNeeded);
         return;
     }
-    
+
     await startNewPvPGame(ctx, bot, game, gameId);
 }
 
@@ -131,18 +129,22 @@ async function handlePartialRematchVote(
 ): Promise<void> {
     const keyboard = buildGameKeyboard(game.board, gameId);
     keyboard.row();
-    keyboard.text(`Rematch (${currentVotes}/${votesNeeded})`, `${CALLBACK_PREFIXES.REMATCH}${gameId}`);
+    keyboard.text(
+        `Rematch (${currentVotes}/${votesNeeded})`,
+        `${CALLBACK_PREFIXES.REMATCH}${gameId}`
+    );
 
     const updatePromises = game.players
-        .filter(p => p.chatId && p.messageId && p.id !== null)
-        .map(p => 
-            bot.api.editMessageReplyMarkup(p.chatId!, p.messageId!, { reply_markup: keyboard })
-                .catch(e => logger.error(`Failed to update rematch button:`, e))
+        .filter((p) => p.chatId && p.messageId && p.id !== null)
+        .map((p) =>
+            bot.api
+                .editMessageReplyMarkup(p.chatId!, p.messageId!, { reply_markup: keyboard })
+                .catch((e) => logger.error(`Failed to update rematch button:`, e))
         );
 
     await Promise.all([
         ctx.answerCallbackQuery({ text: MESSAGES.REMATCH_REQUESTED }),
-        ...updatePromises
+        ...updatePromises,
     ]);
 }
 
@@ -154,9 +156,17 @@ async function startNewPvPGame(
 ): Promise<void> {
     const [oldP1, oldP2] = game.players;
     if (!oldP1.id || !oldP1.chatId || !oldP2.id || !oldP2.chatId) return;
-    
-    const newGame = createGame(oldP1.id, oldP1.chatId, "pvp", BOARD.ROWS, BOARD.COLS, undefined, oldP1.username);
-    const updatedPlayers = newGame.players.map(player => {
+
+    const newGame = createGame(
+        oldP1.id,
+        oldP1.chatId,
+        "pvp",
+        BOARD.ROWS,
+        BOARD.COLS,
+        undefined,
+        oldP1.username
+    );
+    const updatedPlayers = newGame.players.map((player) => {
         if (player.id === oldP1.id) {
             return { ...player, messageId: oldP1.messageId };
         }
@@ -179,7 +189,7 @@ async function startNewPvPGame(
 
     await Promise.all([
         updateBothPlayersMessages(bot, freshGame, keyboard),
-        ctx.answerCallbackQuery({ text: MESSAGES.REMATCH_STARTED_TEXT })
+        ctx.answerCallbackQuery({ text: MESSAGES.REMATCH_STARTED_TEXT }),
     ]);
     deleteGame(gameId);
 }
@@ -198,10 +208,17 @@ function assignSecondPlayer(players: Player[], p2: Player): Player[] {
     return updated;
 }
 
-async function updateBothPlayersMessages(bot: Bot, game: Game, keyboard: InlineKeyboard): Promise<void> {
+async function updateBothPlayersMessages(
+    bot: Bot,
+    game: Game,
+    keyboard: InlineKeyboard
+): Promise<void> {
     const updatePromises = game.players
-        .filter(player => player.chatId && player.messageId && player.id !== null && player.id !== undefined)
-        .map(async player => {
+        .filter(
+            (player) =>
+                player.chatId && player.messageId && player.id !== null && player.id !== undefined
+        )
+        .map(async (player) => {
             const opponent = getOpponent(game, player.id!);
             const symbol = getSymbolEmoji(player.symbol);
             const isTurn = game.currentTurn === game.players.indexOf(player);
@@ -210,8 +227,13 @@ async function updateBothPlayersMessages(bot: Bot, game: Game, keyboard: InlineK
             const base = MESSAGES.REMATCH_STARTED_FULL(opponent?.username, symbol, turnText);
             const fullMessage = `${stats}\n\n${base}`;
 
-            return bot.api.editMessageText(player.chatId!, player.messageId!, fullMessage, { reply_markup: keyboard })
-                .catch(e => logger.error(`Failed to update rematch board for player ${player.id}:`, e));
+            return bot.api
+                .editMessageText(player.chatId!, player.messageId!, fullMessage, {
+                    reply_markup: keyboard,
+                })
+                .catch((e) =>
+                    logger.error(`Failed to update rematch board for player ${player.id}:`, e)
+                );
         });
 
     await Promise.all(updatePromises);
