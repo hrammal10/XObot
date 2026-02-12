@@ -47,6 +47,12 @@ async function handlePvERematch(
         return;
     }
     const newGame = createGame(userId, chatId, "pve", BOARD.ROWS, BOARD.COLS, game.difficulty);
+
+    if (!newGame) {
+        await ctx.answerCallbackQuery({ text: MESSAGES.GAME_CREATION_FAILED, show_alert: true });
+        return;
+    }
+
     const { boardToShow, currentTurn } = computeInitialPvEBoard(newGame);
     const keyboard = buildGameKeyboard(boardToShow, newGame.id);
     const userPlayer = getPlayerById(newGame, userId)!;
@@ -166,6 +172,12 @@ async function startNewPvPGame(
         undefined,
         oldP1.username
     );
+
+    if (!newGame) {
+        await ctx.answerCallbackQuery({ text: MESSAGES.GAME_CREATION_FAILED, show_alert: true });
+        return;
+    }
+
     const updatedPlayers = newGame.players.map((player) => {
         if (player.id === oldP1.id) {
             return { ...player, messageId: oldP1.messageId };

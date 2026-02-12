@@ -13,12 +13,34 @@ export async function challengeCommand(ctx: CommandContext<Context>, bot: Bot): 
         await ctx.reply(MESSAGES.USER_NOT_IDENTIFIED);
         return;
     }
+    if (!ctx.chat) {
+        await ctx.reply(MESSAGES.CHAT_NOT_FOUND);
+        return;
+    }
+
     const user = extractUser(ctx);
     const game = createPvPGame(user);
+
+    if (!game) {
+        await ctx.reply(MESSAGES.GAME_CREATION_FAILED);
+        return;
+    }
+
+    const creator = getPlayerById(game, user.id);
+
+    if (!creator) {
+        await ctx.reply(MESSAGES.GAME_CREATION_FAILED);
+        return;
+    }
+
     const inviteKeyboard = buildInviteKeyboard(game.id);
-    const creator = getPlayerById(game, user.id)!;
     const creatorSymbol = getSymbolEmoji(creator.symbol);
     const message = await sendChallengeMessage(ctx, creatorSymbol, inviteKeyboard);
+
+    if (!message) {
+        return;
+    }
+
     updateCreatorMessageId(game.id, game.players, user.id, message.message_id);
 }
 

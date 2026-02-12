@@ -22,6 +22,13 @@ function checkAntiDiagonal(board: Cell[][], player: PlayerSymbol): boolean {
 }
 
 export function checkWinner(board: Cell[][], row: number, col: number): PlayerSymbol | null {
+    if (!board || board.length === 0) {
+        return null;
+    }
+    if (row < 0 || row >= board.length || col < 0 || col >= board[0].length) {
+        return null;
+    }
+
     const player = board[row][col];
     if (!player) return null;
 
@@ -46,20 +53,43 @@ export function checkWinner(board: Cell[][], row: number, col: number): PlayerSy
 }
 
 export function checkDraw(board: Cell[][]): boolean {
+    if (!board || board.length === 0) {
+        return false;
+    }
     return board.every((row) => row.every((cell) => cell !== null));
 }
 
-export function isCellEmpty(board: Cell[][], row: number, col: number) {
+export function isCellEmpty(board: Cell[][], row: number, col: number): boolean {
+    if (!board || board.length === 0) {
+        return false;
+    }
+    if (row < 0 || row >= board.length || col < 0 || col >= board[0].length) {
+        return false;
+    }
     return board[row][col] === null;
 }
 
-export function makeMove(board: Cell[][], row: number, col: number, player: PlayerSymbol) {
+export function makeMove(
+    board: Cell[][],
+    row: number,
+    col: number,
+    player: PlayerSymbol
+): Cell[][] {
+    if (!board || board.length === 0) {
+        return board;
+    }
+    if (row < 0 || row >= board.length || col < 0 || col >= board[0].length) {
+        return board;
+    }
     const newBoard = board.map((r) => [...r]);
     newBoard[row][col] = player;
     return newBoard;
 }
 
-export function getEmptyPositions(board: Cell[][]) {
+export function getEmptyPositions(board: Cell[][]): [number, number][] {
+    if (!board || board.length === 0) {
+        return [];
+    }
     const emptyPositionsIndices: [number, number][] = [];
     for (let i = 0; i < board.length; i++) {
         for (let j = 0; j < board[i].length; j++) {
@@ -76,13 +106,16 @@ export function getBotMove(
     difficulty: "easy" | "hard",
     botSymbol: PlayerSymbol
 ): [number, number] {
+    const emptyPos = getEmptyPositions(board);
+    if (emptyPos.length === 0) {
+        return [-1, -1];
+    }
+
     if (difficulty === "easy") {
-        const emptyPos = getEmptyPositions(board);
         const botPick = Math.floor(Math.random() * emptyPos.length);
         return emptyPos[botPick];
-    } else {
-        return findBestMove(board, botSymbol);
     }
+    return findBestMove(board, botSymbol);
 }
 
 export function switchTurn(currentTurn: PlayerSymbol) {
@@ -90,6 +123,12 @@ export function switchTurn(currentTurn: PlayerSymbol) {
 }
 
 export function isPlayerTurn(game: Game, userId: number): boolean {
+    if (!game || !game.players || game.players.length === 0) {
+        return false;
+    }
+    if (game.currentTurn < 0 || game.currentTurn >= game.players.length) {
+        return false;
+    }
     const currentPlayer = game.players[game.currentTurn];
     return userId === currentPlayer.id;
 }
@@ -145,9 +184,13 @@ function minimax(
 
 // depending on the minimax algorithm, we find the best move for the bot to make
 function findBestMove(board: Cell[][], botSymbol: PlayerSymbol): [number, number] {
+    const emptyPos = getEmptyPositions(board);
+    if (emptyPos.length === 0) {
+        return [-1, -1];
+    }
+
     let bestScore = -Infinity;
     let bestPosition: [number, number] = [-1, -1];
-    const emptyPos = getEmptyPositions(board);
     for (const position of emptyPos) {
         const [r, c] = position;
         const newBoard = makeMove(board, r, c, botSymbol);

@@ -9,12 +9,18 @@ import { createOrGetPlayer } from "../../database/models/playerModel";
 import { getStatsText } from "../../utils/messageFormatters";
 import { Player, Game } from "../../game/types";
 import { InlineKeyboard } from "grammy";
+import logger from "../../utils/logger";
 
 export async function startCommand(ctx: CommandContext<Context>, bot: Bot): Promise<void> {
     if (!ctx.from) {
         await ctx.reply(MESSAGES.USER_NOT_IDENTIFIED);
         return;
     }
+    if (!ctx.chat) {
+        await ctx.reply(MESSAGES.CHAT_NOT_FOUND);
+        return;
+    }
+
     const payload = ctx.match;
     const isJoinRequest = payload?.startsWith(CALLBACK_PREFIXES.JOIN);
     if (!isJoinRequest) {
@@ -22,6 +28,11 @@ export async function startCommand(ctx: CommandContext<Context>, bot: Bot): Prom
         return;
     }
     const gameId = extractGameId(payload);
+    if (!gameId) {
+        await ctx.reply(MESSAGES.GAME_NOT_FOUND);
+        return;
+    }
+
     const user = extractUser(ctx);
     const joinResult = joinGame(gameId, user.id, user.chatId, user.username);
     if (!joinResult.success) {
@@ -34,20 +45,26 @@ export async function startCommand(ctx: CommandContext<Context>, bot: Bot): Prom
     await ensurePlayersExist(joiner, opponent);
     const statsText = await buildStatsText(joiner, opponent);
     const keyboard = buildGameKeyboard(game.board, game.id);
-    const joinerMessage = await sendJoinerMessage(ctx, {
-        statsText,
-        joiner,
-        opponent,
-        game,
-        keyboard,
-    });
-    await updateJoinerMessageId(gameId, joinerMessage.message_id, joiner.id!);
-    await updateCreatorMessage(bot, {
-        game,
-        joiner,
-        opponent,
-        keyboard,
-    });
+
+    try {
+        const joinerMessage = await sendJoinerMessage(ctx, {
+            statsText,
+            joiner,
+            opponent,
+            game,
+            keyboard,
+        });
+        await updateJoinerMessageId(gameId, joinerMessage.message_id, joiner.id!);
+        await updateCreatorMessage(bot, {
+            game,
+            joiner,
+            opponent,
+            keyboard,
+        });
+    } catch (error) {
+        logger.error("Failed to send game messages:", error);
+        await ctx.reply(MESSAGES.UNEXPECTED_ERROR);
+    }
 }
 
 function extractGameId(payload: string): string {
@@ -63,12 +80,14 @@ function extractUser(ctx: CommandContext<Context>) {
 }
 
 async function ensurePlayersExist(joiner: Player, opponent?: Player) {
+    const promises: Promise<any>[] = [];
     if (joiner.id) {
-        await createOrGetPlayer(joiner.id, joiner.username);
+        promises.push(createOrGetPlayer(joiner.id, joiner.username));
     }
     if (opponent?.id) {
-        await createOrGetPlayer(opponent.id, opponent.username);
+        promises.push(createOrGetPlayer(opponent.id, opponent.username));
     }
+    await Promise.all(promises);
 }
 
 async function buildStatsText(joiner: Player, opponent?: Player): Promise<string> {
@@ -128,7 +147,9 @@ async function updateCreatorMessage(
         keyboard: InlineKeyboard;
     }
 ): Promise<void> {
-    if (!opponent?.chatId || !opponent.messageId || !opponent.id || !joiner.id) return;
+    if (!opponent?.chatId || !opponent.messageId || !opponent.id || !joiner.id) {
+        return;
+    }
 
     const symbol = getSymbolEmoji(opponent.symbol);
     const isTurn = game.currentTurn === game.players.indexOf(opponent);
@@ -138,7 +159,11 @@ async function updateCreatorMessage(
 
     const messageText = `${statsText}\n\n${baseMessage}`;
 
-    await bot.api.editMessageText(opponent.chatId, opponent.messageId, messageText, {
-        reply_markup: keyboard,
-    });
+    try {
+        await bot.api.editMessageText(opponent.chatId, opponent.messageId, messageText, {
+            reply_markup: keyboard,
+        });
+    } catch (error) {
+        logger.error(`Failed to update creator message:`, error);
+    }
 }

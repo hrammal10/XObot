@@ -1,3 +1,5 @@
+
+
 export const MESSAGES = {
     //errors
     USER_NOT_IDENTIFIED: "Could not identify user",
@@ -10,6 +12,8 @@ export const MESSAGES = {
     NOT_IN_GAME: "You are not in this game",
     CANT_JOIN_OWN_GAME: "Can't join your own game",
     GAME_FULL: "Game is full",
+    GAME_CREATION_FAILED: "Failed to create game. Please try again.",
+    LEADERBOARD_LOAD_ERROR: "❌ Failed to load leaderboard. Try again later.",
 
     WELCOME:
         "You ready for a game of Tic-Tac_Toe?\nType /play to start a game against the Master.\nType /challenge to challenge your friends!",

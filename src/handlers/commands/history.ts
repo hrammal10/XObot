@@ -72,13 +72,20 @@ function getGameResult(
     if (game.status === "draw") {
         return "draw";
     }
-    return game.winnerTelegramId === telegramId ? "win" : "loss";
+    if (game.winnerTelegramId === telegramId) {
+        return "win";
+    }
+    return "loss";
 }
 
 async function formatGameHistory(
     games: Awaited<ReturnType<typeof getPlayerGames>>,
     telegramId: bigint
 ): Promise<string[]> {
+    if (games.length === 0) {
+        return [];
+    }
+
     return Promise.all(
         games.map(async (game) => {
             const result = getGameResult(game, telegramId);
@@ -113,8 +120,17 @@ async function getOpponentInfo(
 }
 
 function formatDate(date: Date): string {
+    if (!date) {
+        return "Unknown";
+    }
+
     const now = new Date();
     const diff = now.getTime() - date.getTime();
+
+    if (diff < 0) {
+        return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    }
+
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
     if (days === 0) {

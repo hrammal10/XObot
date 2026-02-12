@@ -2,6 +2,7 @@ import { CommandContext, Context } from "grammy";
 import { PrismaClient, Prisma } from "../../generated/prisma/client";
 import { MESSAGES } from "../../constants/userMessages";
 import { MEDAL_EMOJI } from "../../constants/symbols";
+import logger from "../../utils/logger";
 
 const prisma = new PrismaClient();
 
@@ -20,24 +21,41 @@ async function fetchTopPlayersByWins(limit: number) {
 type WinCount = Awaited<ReturnType<typeof fetchTopPlayersByWins>>[number];
 
 export async function leaderboardCommand(ctx: CommandContext<Context>): Promise<void> {
-    const topPlayers = await fetchTopPlayersByWins(LEADERBOARD_LIMIT);
-
-    if (topPlayers.length === 0) {
-        await ctx.reply(MESSAGES.NO_GAMES_PLAYED_LEADERBOARD);
+    if (!ctx.from) {
+        await ctx.reply(MESSAGES.USER_NOT_IDENTIFIED);
         return;
     }
 
-    const leaderboardLines = await formatLeaderboard(topPlayers);
-    await ctx.reply(MESSAGES.LEADERBOARD_HEADER + leaderboardLines.join("\n"), {
-        parse_mode: "Markdown",
-    });
+    try {
+        const topPlayers = await fetchTopPlayersByWins(LEADERBOARD_LIMIT);
+
+        if (topPlayers.length === 0) {
+            await ctx.reply(MESSAGES.NO_GAMES_PLAYED_LEADERBOARD);
+            return;
+        }
+
+        const leaderboardLines = await formatLeaderboard(topPlayers);
+        await ctx.reply(MESSAGES.LEADERBOARD_HEADER + leaderboardLines.join("\n"), {
+            parse_mode: "Markdown",
+        });
+    } catch (error) {
+        logger.error("Failed to fetch leaderboard:", error);
+        await ctx.reply(MESSAGES.LEADERBOARD_LOAD_ERROR);
+    }
 }
 
 async function formatLeaderboard(players: WinCount[]): Promise<string[]> {
+    if (players.length === 0) {
+        return [];
+    }
     return Promise.all(players.map((entry, index) => formatLeaderboardEntry(entry, index)));
 }
 
 async function formatLeaderboardEntry(entry: WinCount, index: number): Promise<string> {
+    if (!entry.playerTelegramId) {
+        return `${getRankDisplay(index)} ${MESSAGES.UNKNOWN_PLAYER} - 0 wins`;
+    }
+
     const player = await prisma.player.findUnique({
         where: { telegramId: entry.playerTelegramId },
     });

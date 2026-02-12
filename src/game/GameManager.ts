@@ -17,7 +17,14 @@ export function createGame(
     cols: number,
     difficulty?: "easy" | "hard",
     creatorUsername?: string
-) {
+): Game | null {
+    if (rows <= 0 || cols <= 0) {
+        return null;
+    }
+    if (mode === "pve" && !difficulty) {
+        return null;
+    }
+
     const creatorIsX = Math.random() < 0.5;
     const creatorIndex = creatorIsX ? 0 : 1;
     const otherIndex = creatorIsX ? 1 : 0;
@@ -49,19 +56,29 @@ export function createGame(
     return game;
 }
 
-export function getGame(gameId: string) {
+export function getGame(gameId: string): Game | undefined {
+    if (!gameId) {
+        return undefined;
+    }
     return activeGames.get(gameId);
 }
 
-export function updateGame(gameId: string, updates: Partial<Game>) {
-    const originalGame = getGame(gameId);
-    if (originalGame) {
-        const updatedGame = { ...originalGame, ...updates };
-        activeGames.set(gameId, updatedGame);
+export function updateGame(gameId: string, updates: Partial<Game>): void {
+    if (!gameId) {
+        return;
     }
+    const originalGame = getGame(gameId);
+    if (!originalGame) {
+        return;
+    }
+    const updatedGame = { ...originalGame, ...updates };
+    activeGames.set(gameId, updatedGame);
 }
 
-export function deleteGame(gameId: string) {
+export function deleteGame(gameId: string): void {
+    if (!gameId) {
+        return;
+    }
     activeGames.delete(gameId);
 }
 
@@ -71,6 +88,13 @@ export function joinGame(
     joinerChatId: number,
     joinerUsername?: string
 ) {
+    if (!gameId) {
+        return { success: false, error: MESSAGES.GAME_NOT_FOUND };
+    }
+    if (!joinerId || !joinerChatId) {
+        return { success: false, error: MESSAGES.USER_NOT_IDENTIFIED };
+    }
+
     const game = getGame(gameId);
     if (!game) {
         return { success: false, error: MESSAGES.GAME_NOT_FOUND };
