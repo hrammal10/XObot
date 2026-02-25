@@ -1,10 +1,9 @@
 import { CommandContext, Context } from "grammy";
-import { PrismaClient } from "../../generated/prisma/client";
+import { getPlayerHistory, getPlayerUsername, GameRecordAccount } from "../../solana";
+import { BN } from "@coral-xyz/anchor";
 import logger from "../../utils/logger";
 import { MESSAGES } from "../../constants/userMessages";
 import { RESULT_EMOJI, MODE_EMOJI } from "../../constants/symbols";
-
-const prisma = new PrismaClient();
 
 export async function historyCommand(ctx: CommandContext<Context>): Promise<void> {
     if (!ctx.from) {
@@ -13,8 +12,8 @@ export async function historyCommand(ctx: CommandContext<Context>): Promise<void
     }
 
     try {
-        const telegramId = BigInt(ctx.from.id);
-        const games = await getPlayerGames(telegramId);
+        const telegramId = ctx.from.id;
+        const games = await getPlayerHistory(telegramId);
 
         if (games.length === 0) {
             await ctx.reply(MESSAGES.NO_GAMES_PLAYED_HISTORY);
@@ -37,24 +36,7 @@ export async function historyCommand(ctx: CommandContext<Context>): Promise<void
     }
 }
 
-async function getPlayerGames(telegramId: bigint) {
-    return prisma.game.findMany({
-        where: {
-            players: {
-                some: { playerTelegramId: telegramId },
-            },
-        },
-        include: {
-            players: true,
-        },
-        orderBy: {
-            completedAt: "desc",
-        },
-        take: 10,
-    });
-}
-
-function calculateStats(games: Awaited<ReturnType<typeof getPlayerGames>>, telegramId: bigint) {
+function calculateStats(games: GameRecordAccount[], telegramId: number) {
     return games.reduce(
         (acc, game) => {
             const result = getGameResult(game, telegramId);
@@ -65,22 +47,19 @@ function calculateStats(games: Awaited<ReturnType<typeof getPlayerGames>>, teleg
     );
 }
 
-function getGameResult(
-    game: Awaited<ReturnType<typeof getPlayerGames>>[0],
-    telegramId: bigint
-): "win" | "loss" | "draw" {
+function getGameResult(game: GameRecordAccount, telegramId: number): "win" | "loss" | "draw" {
     if (game.status === "draw") {
         return "draw";
     }
-    if (game.winnerTelegramId === telegramId) {
+    if (game.winnerTelegramId && game.winnerTelegramId.eq(new BN(telegramId))) {
         return "win";
     }
     return "loss";
 }
 
 async function formatGameHistory(
-    games: Awaited<ReturnType<typeof getPlayerGames>>,
-    telegramId: bigint
+    games: GameRecordAccount[],
+    telegramId: number
 ): Promise<string[]> {
     if (games.length === 0) {
         return [];
@@ -100,30 +79,22 @@ async function formatGameHistory(
 }
 
 async function getOpponentInfo(
-    game: Awaited<ReturnType<typeof getPlayerGames>>[0],
-    telegramId: bigint
+    game: GameRecordAccount,
+    telegramId: number
 ): Promise<string> {
     if (game.gameMode === "pve") {
         return MESSAGES.BOT_OPPONENT;
     }
 
-    const opponentEntry = game.players.find((p) => p.playerTelegramId !== telegramId);
-    if (!opponentEntry) {
-        return MESSAGES.UNKNOWN_PLAYER;
-    }
+    const isPlayer1 = game.player1TelegramId.eq(new BN(telegramId));
+    const opponentId = isPlayer1 ? game.player2TelegramId : game.player1TelegramId;
+    const username = await getPlayerUsername(opponentId.toNumber());
 
-    const opponent = await prisma.player.findUnique({
-        where: { telegramId: opponentEntry.playerTelegramId },
-    });
-
-    return opponent?.username ? `@${opponent.username}` : MESSAGES.UNKNOWN_PLAYER;
+    return username ? `@${username}` : MESSAGES.UNKNOWN_PLAYER;
 }
 
-function formatDate(date: Date): string {
-    if (!date) {
-        return "Unknown";
-    }
-
+function formatDate(timestamp: BN): string {
+    const date = new Date(timestamp.toNumber() * 1000);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
 

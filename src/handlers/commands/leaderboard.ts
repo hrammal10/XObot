@@ -1,24 +1,14 @@
 import { CommandContext, Context } from "grammy";
-import { PrismaClient, Prisma } from "../../generated/prisma/client";
+import { getLeaderboard } from "../../solana";
 import { MESSAGES } from "../../constants/userMessages";
 import { MEDAL_EMOJI } from "../../constants/symbols";
 import logger from "../../utils/logger";
 
-const prisma = new PrismaClient();
-
-const LEADERBOARD_LIMIT = 10;
-
-async function fetchTopPlayersByWins(limit: number) {
-    return prisma.gamePlayer.groupBy({
-        by: ["playerTelegramId"],
-        where: { isWinner: true },
-        _count: { isWinner: true },
-        orderBy: { _count: { isWinner: "desc" } },
-        take: limit,
-    });
-}
-
-type WinCount = Awaited<ReturnType<typeof fetchTopPlayersByWins>>[number];
+type WinCount = {
+    playerTelegramId: number;
+    username?: string;
+    wins: number;
+};
 
 export async function leaderboardCommand(ctx: CommandContext<Context>): Promise<void> {
     if (!ctx.from) {
@@ -27,14 +17,20 @@ export async function leaderboardCommand(ctx: CommandContext<Context>): Promise<
     }
 
     try {
-        const topPlayers = await fetchTopPlayersByWins(LEADERBOARD_LIMIT);
+        const topPlayers = await getLeaderboard();
 
         if (topPlayers.length === 0) {
             await ctx.reply(MESSAGES.NO_GAMES_PLAYED_LEADERBOARD);
             return;
         }
 
-        const leaderboardLines = await formatLeaderboard(topPlayers);
+        const leaderboardLines = await formatLeaderboard(
+            topPlayers.map((p) => ({
+                playerTelegramId: p.telegramId.toNumber(),
+                username: p.username,
+                wins: p.totalWins,
+            }))
+        );
         await ctx.reply(MESSAGES.LEADERBOARD_HEADER + leaderboardLines.join("\n"), {
             parse_mode: "Markdown",
         });
@@ -52,18 +48,9 @@ async function formatLeaderboard(players: WinCount[]): Promise<string[]> {
 }
 
 async function formatLeaderboardEntry(entry: WinCount, index: number): Promise<string> {
-    if (!entry.playerTelegramId) {
-        return `${getRankDisplay(index)} ${MESSAGES.UNKNOWN_PLAYER} - 0 wins`;
-    }
-
-    const player = await prisma.player.findUnique({
-        where: { telegramId: entry.playerTelegramId },
-    });
-
     const rank = getRankDisplay(index);
-    const username = player?.username || MESSAGES.UNKNOWN_PLAYER;
-    const wins = entry._count.isWinner;
-
+    const username = entry.username || MESSAGES.UNKNOWN_PLAYER;
+    const wins = entry.wins;
     return `${rank} @${username} - ${wins} wins`;
 }
 

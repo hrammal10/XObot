@@ -1,0 +1,409 @@
+{
+    "address": "B2S6T4oowZe1iLj4LJQb9ngpJqurw58exY4kQKQ46x5j",
+    "metadata": {
+        "name": "xobot_program",
+        "version": "0.1.0",
+        "spec": "0.1.0",
+        "description": "Created with Anchor"
+    },
+    "instructions": [
+        {
+            "name": "init_player",
+            "discriminator": [114, 27, 219, 144, 50, 15, 228, 66],
+            "accounts": [
+                {
+                    "name": "player",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [112, 108, 97, 121, 101, 114]
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "telegram_id"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "signer",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "telegram_id",
+                    "type": "u64"
+                },
+                {
+                    "name": "username",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "save_game",
+            "discriminator": [37, 191, 241, 36, 150, 148, 232, 211],
+            "accounts": [
+                {
+                    "name": "game",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "signer",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "game_mode",
+                    "type": "string"
+                },
+                {
+                    "name": "board_state",
+                    "type": "string"
+                },
+                {
+                    "name": "winner_telegram_id",
+                    "type": {
+                        "option": "u64"
+                    }
+                },
+                {
+                    "name": "status",
+                    "type": "string"
+                },
+                {
+                    "name": "player1_telegram_id",
+                    "type": "u64"
+                },
+                {
+                    "name": "player2_telegram_id",
+                    "type": "u64"
+                },
+                {
+                    "name": "player1_symbol",
+                    "type": "string"
+                },
+                {
+                    "name": "player2_symbol",
+                    "type": "string"
+                },
+                {
+                    "name": "player1_is_winner",
+                    "type": "bool"
+                },
+                {
+                    "name": "player2_is_winner",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "update_head_to_head",
+            "discriminator": [101, 34, 173, 233, 207, 12, 15, 184],
+            "accounts": [
+                {
+                    "name": "stats",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [104, 101, 97, 100, 95, 116, 111, 95, 104, 101, 97, 100]
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "player1_telegram_id"
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "player2_telegram_id"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "signer",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "player1_telegram_id",
+                    "type": "u64"
+                },
+                {
+                    "name": "player2_telegram_id",
+                    "type": "u64"
+                },
+                {
+                    "name": "result",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "update_leaderboard",
+            "discriminator": [72, 95, 102, 32, 118, 158, 247, 34],
+            "accounts": [
+                {
+                    "name": "leaderboard",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [108, 101, 97, 100, 101, 114, 98, 111, 97, 114, 100]
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "telegram_id"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "signer",
+                    "writable": true,
+                    "signer": true
+                },
+                {
+                    "name": "system_program",
+                    "address": "11111111111111111111111111111111"
+                }
+            ],
+            "args": [
+                {
+                    "name": "_telegram_id",
+                    "type": "u64"
+                },
+                {
+                    "name": "username",
+                    "type": "string"
+                },
+                {
+                    "name": "result",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "update_player",
+            "discriminator": [188, 237, 209, 245, 60, 160, 16, 126],
+            "accounts": [
+                {
+                    "name": "player",
+                    "writable": true,
+                    "pda": {
+                        "seeds": [
+                            {
+                                "kind": "const",
+                                "value": [112, 108, 97, 121, 101, 114]
+                            },
+                            {
+                                "kind": "arg",
+                                "path": "telegram_id"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "name": "signer",
+                    "writable": true,
+                    "signer": true
+                }
+            ],
+            "args": [
+                {
+                    "name": "_telegram_id",
+                    "type": "u64"
+                },
+                {
+                    "name": "username",
+                    "type": "string"
+                }
+            ]
+        }
+    ],
+    "accounts": [
+        {
+            "name": "GameRecord",
+            "discriminator": [28, 157, 20, 4, 219, 32, 208, 147]
+        },
+        {
+            "name": "HeadToHeadStats",
+            "discriminator": [67, 85, 64, 57, 222, 159, 23, 218]
+        },
+        {
+            "name": "PlayerAccount",
+            "discriminator": [224, 184, 224, 50, 98, 72, 48, 236]
+        },
+        {
+            "name": "PlayerLeaderboard",
+            "discriminator": [224, 157, 96, 155, 231, 196, 158, 247]
+        }
+    ],
+    "types": [
+        {
+            "name": "GameRecord",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "game_mode",
+                        "type": "string"
+                    },
+                    {
+                        "name": "board_state",
+                        "type": "string"
+                    },
+                    {
+                        "name": "winner_telegram_id",
+                        "type": {
+                            "option": "u64"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "type": "string"
+                    },
+                    {
+                        "name": "player1_telegram_id",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "player2_telegram_id",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "player1_symbol",
+                        "type": "string"
+                    },
+                    {
+                        "name": "player2_symbol",
+                        "type": "string"
+                    },
+                    {
+                        "name": "player1_is_winner",
+                        "type": "bool"
+                    },
+                    {
+                        "name": "player2_is_winner",
+                        "type": "bool"
+                    },
+                    {
+                        "name": "created_at",
+                        "type": "i64"
+                    },
+                    {
+                        "name": "completed_at",
+                        "type": "i64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "HeadToHeadStats",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "player1_telegram_id",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "player2_telegram_id",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "player1_wins",
+                        "type": "u32"
+                    },
+                    {
+                        "name": "player2_wins",
+                        "type": "u32"
+                    },
+                    {
+                        "name": "draws",
+                        "type": "u32"
+                    },
+                    {
+                        "name": "total_games",
+                        "type": "u32"
+                    },
+                    {
+                        "name": "last_played",
+                        "type": "i64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "PlayerAccount",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "telegram_id",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "username",
+                        "type": "string"
+                    },
+                    {
+                        "name": "created_at",
+                        "type": "i64"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "PlayerLeaderboard",
+            "type": {
+                "kind": "struct",
+                "fields": [
+                    {
+                        "name": "telegram_id",
+                        "type": "u64"
+                    },
+                    {
+                        "name": "username",
+                        "type": "string"
+                    },
+                    {
+                        "name": "total_wins",
+                        "type": "u32"
+                    },
+                    {
+                        "name": "total_losses",
+                        "type": "u32"
+                    },
+                    {
+                        "name": "total_draws",
+                        "type": "u32"
+                    }
+                ]
+            }
+        }
+    ]
+}

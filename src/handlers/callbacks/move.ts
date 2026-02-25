@@ -14,9 +14,13 @@ import {
 } from "../../game/gameLogic";
 import { buildGameKeyboard } from "../../ui/keyboard";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
-import { saveCompletedGame } from "../../database/models/gameModel";
-import { updatePlayerStats } from "../../database/models/playerStatsModel";
-import { createOrGetPlayer } from "../../database/models/playerModel";
+import { BUTTON_LABELS } from "../../constants/buttons";
+import {
+    initPlayer,
+    saveGame,
+    updateHeadToHeadStats,
+    updateLeaderboard,
+} from "../../solana";
 import { formatPvPMessage } from "../../utils/messageFormatters";
 import logger from "../../utils/logger";
 
@@ -153,6 +157,9 @@ async function handlePostMove(
     if (status === "won" || status === "draw") {
         addRematchButton(keyboard, game);
         await handleGameCompletion(game, board, winner ?? null, status);
+    } else if (game.mode === "pve") {
+        keyboard.row();
+        keyboard.text(BUTTON_LABELS.RETURN, `${CALLBACK_PREFIXES.RETURN}${gameId}`);
     }
     if (game.mode === "pve") {
         await ctx.editMessageText(statusText, { reply_markup: keyboard });
@@ -164,7 +171,11 @@ async function handlePostMove(
 function addRematchButton(keyboard: InlineKeyboard, game: Game): void {
     keyboard.row();
     const count = game.mode === "pve" ? 1 : game.rematchCount;
-    keyboard.text(`Rematch (${count}/2)`, `${CALLBACK_PREFIXES.REMATCH}${game.id}`);
+    keyboard.text(BUTTON_LABELS.REMATCH(count, 2), `${CALLBACK_PREFIXES.REMATCH}${game.id}`);
+    if (game.mode === "pve") {
+        keyboard.row();
+        keyboard.text(BUTTON_LABELS.RETURN, `${CALLBACK_PREFIXES.RETURN}${game.id}`);
+    }
 }
 
 async function handleGameCompletion(
@@ -175,22 +186,59 @@ async function handleGameCompletion(
 ): Promise<void> {
     if (game.mode !== "pvp") return;
 
-    const players = game.players
-        .filter((p) => p.id !== null)
-        .map((p) => ({
-            telegramId: BigInt(p.id!),
-            symbol: p.symbol,
-            isWinner: p.id === winner,
-        }));
-    const winnerBigInt = winner !== null ? BigInt(winner) : null;
+    const p1 = game.players[0];
+    const p2 = game.players[1];
+    const boardState = board.map((row) => row.join(",")).join(";");
 
-    await Promise.all([
-        createOrGetPlayer(game.players[0].id!, game.players[0].username),
-        createOrGetPlayer(game.players[1].id!, game.players[1].username),
-        saveCompletedGame(game.mode, board, winnerBigInt, status, players),
-        updatePlayerStats(game.players[0].id!, game.players[1].id!, winner),
-    ]);
+    try {
+        await Promise.all([
+            initPlayer(p1.id!, p1.username ?? "unknown"),
+            initPlayer(p2.id!, p2.username ?? "unknown"),
+        ]);
+
+        await saveGame({
+            gameMode: game.mode,
+            boardState,
+            winnerTelegramId: winner,
+            status,
+            player1TelegramId: p1.id!,
+            player2TelegramId: p2.id!,
+            player1Symbol: p1.symbol,
+            player2Symbol: p2.symbol,
+            player1IsWinner: p1.id === winner,
+            player2IsWinner: p2.id === winner,
+        });
+
+        const h2hResult =
+            winner === null ? "draw" : winner === p1.id ? "player1_win" : "player2_win";
+        await updateHeadToHeadStats(
+            p1.id!,
+            p2.id!,
+            h2hResult as "player1_win" | "player2_win" | "draw"
+        );
+
+        if (status === "draw") {
+            await Promise.all([
+                updateLeaderboard(p1.id!, p1.username ?? "unknown", "draw"),
+                updateLeaderboard(p2.id!, p2.username ?? "unknown", "draw"),
+            ]);
+        } else {
+            const winnerId = winner!;
+            const loserId = winnerId === p1.id ? p2.id! : p1.id!;
+            const winnerUsername =
+                winnerId === p1.id ? (p1.username ?? "unknown") : (p2.username ?? "unknown");
+            const loserUsername =
+                loserId === p1.id ? (p1.username ?? "unknown") : (p2.username ?? "unknown");
+            await Promise.all([
+                updateLeaderboard(winnerId, winnerUsername, "win"),
+                updateLeaderboard(loserId, loserUsername, "loss"),
+            ]);
+        }
+    } catch (e) {
+        logger.error("Failed to save game to Solana:", e);
+    }
 }
+
 async function updatePvPMessages(
     bot: Bot,
     gameId: string,

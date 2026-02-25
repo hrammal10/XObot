@@ -1,5 +1,3 @@
-
-
 export const MESSAGES = {
     //errors
     USER_NOT_IDENTIFIED: "Could not identify user",
@@ -15,8 +13,7 @@ export const MESSAGES = {
     GAME_CREATION_FAILED: "Failed to create game. Please try again.",
     LEADERBOARD_LOAD_ERROR: "❌ Failed to load leaderboard. Try again later.",
 
-    WELCOME:
-        "You ready for a game of Tic-Tac_Toe?\nType /play to start a game against the Master.\nType /challenge to challenge your friends!",
+    WELCOME: "🎮 Welcome to Tic-Tac-Toe!\nChoose a game mode:",
 
     CHOOSE_DIFFICULTY: "Choose difficulty:",
 
@@ -70,7 +67,7 @@ export const MESSAGES = {
     NO_GAMES_PLAYED_HISTORY: "📜 You haven't played any games yet!",
     HISTORY_HEADER: "📜 *Your Game History*\n\n",
     HISTORY_STATS: (wins: number, losses: number, draws: number) =>
-        `📊 *Overall:* ${wins}W - ${losses}L - ${draws}D\n\n`,
+        `*Overall:* ${wins}W - ${losses}L - ${draws}D\n\n`,
     RECENT_GAMES_HEADER: "*Recent Games:*\n",
     HISTORY_LOAD_ERROR: "❌ Failed to load history. Try again later.",
 

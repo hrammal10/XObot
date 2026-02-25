@@ -7,6 +7,7 @@ import { getPlayerById, getOpponent, getNextTurnIndex } from "../../utils/player
 import { getBotMove, makeMove } from "../../game/gameLogic";
 import { buildGameKeyboard } from "../../ui/keyboard";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
+import { BUTTON_LABELS } from "../../constants/buttons";
 import { getStatsText } from "../../utils/messageFormatters";
 import { Game, Cell, Player } from "../../game/types";
 import logger from "../../utils/logger";
@@ -55,6 +56,9 @@ async function handlePvERematch(
 
     const { boardToShow, currentTurn } = computeInitialPvEBoard(newGame);
     const keyboard = buildGameKeyboard(boardToShow, newGame.id);
+    keyboard.row();
+    keyboard.text(BUTTON_LABELS.RETURN, `${CALLBACK_PREFIXES.RETURN}${newGame.id}`);
+
     const userPlayer = getPlayerById(newGame, userId)!;
     const userSymbol = getSymbolEmoji(userPlayer.symbol);
     await ctx.editMessageText(MESSAGES.REMATCH_WITH_SYMBOL(userSymbol), {
@@ -136,7 +140,7 @@ async function handlePartialRematchVote(
     const keyboard = buildGameKeyboard(game.board, gameId);
     keyboard.row();
     keyboard.text(
-        `Rematch (${currentVotes}/${votesNeeded})`,
+        BUTTON_LABELS.REMATCH(currentVotes, votesNeeded),
         `${CALLBACK_PREFIXES.REMATCH}${gameId}`
     );
 
@@ -204,20 +208,6 @@ async function startNewPvPGame(
         ctx.answerCallbackQuery({ text: MESSAGES.REMATCH_STARTED_TEXT }),
     ]);
     deleteGame(gameId);
-}
-
-function assignSecondPlayer(players: Player[], p2: Player): Player[] {
-    const emptyIndex = players.findIndex((p) => p.id === null && p.chatId === undefined);
-    const updated = [...players];
-    updated[emptyIndex] = {
-        index: emptyIndex,
-        id: p2.id,
-        chatId: p2.chatId,
-        username: p2.username,
-        symbol: updated[emptyIndex].symbol,
-        messageId: p2.messageId,
-    };
-    return updated;
 }
 
 async function updateBothPlayersMessages(

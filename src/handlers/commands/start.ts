@@ -5,11 +5,12 @@ import { joinGame, updateGame, getGame } from "../../game/gameManager";
 import { getPlayerById, getOpponent } from "../../utils/playerUtils";
 import { buildGameKeyboard } from "../../ui/keyboard";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
-import { createOrGetPlayer } from "../../database/models/playerModel";
+import { initPlayer } from "../../solana";
 import { getStatsText } from "../../utils/messageFormatters";
 import { Player, Game } from "../../game/types";
 import { InlineKeyboard } from "grammy";
 import logger from "../../utils/logger";
+import { buildHomeKeyboard } from "../callbacks/menu";
 
 export async function startCommand(ctx: CommandContext<Context>, bot: Bot): Promise<void> {
     if (!ctx.from) {
@@ -24,7 +25,8 @@ export async function startCommand(ctx: CommandContext<Context>, bot: Bot): Prom
     const payload = ctx.match;
     const isJoinRequest = payload?.startsWith(CALLBACK_PREFIXES.JOIN);
     if (!isJoinRequest) {
-        await ctx.reply(MESSAGES.WELCOME);
+        const keyboard = buildHomeKeyboard();
+        await ctx.reply(MESSAGES.WELCOME, { reply_markup: keyboard });
         return;
     }
     const gameId = extractGameId(payload);
@@ -82,10 +84,10 @@ function extractUser(ctx: CommandContext<Context>) {
 async function ensurePlayersExist(joiner: Player, opponent?: Player) {
     const promises: Promise<any>[] = [];
     if (joiner.id) {
-        promises.push(createOrGetPlayer(joiner.id, joiner.username));
+        promises.push(initPlayer(joiner.id, joiner.username ?? "unknown"));
     }
     if (opponent?.id) {
-        promises.push(createOrGetPlayer(opponent.id, opponent.username));
+        promises.push(initPlayer(opponent.id, opponent.username ?? "unknown"));
     }
     await Promise.all(promises);
 }

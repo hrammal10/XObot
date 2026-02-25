@@ -1,4 +1,4 @@
-import { CallbackQueryContext, Context, Bot, InlineKeyboard } from "grammy";
+import { CallbackQueryContext, Context, Bot } from "grammy";
 import { MESSAGES } from "../../constants/userMessages";
 import { getSymbolEmoji } from "../../constants/symbols";
 import { BOARD } from "../../constants/gameConfig";
@@ -7,7 +7,8 @@ import { getPlayerById, getNextTurnIndex } from "../../utils/playerUtils";
 import { getBotMove, makeMove } from "../../game/gameLogic";
 import { buildGameKeyboard } from "../../ui/keyboard";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
-import { Game, Cell, Player } from "../../game/types";
+import { BUTTON_LABELS } from "../../constants/buttons";
+import { Game, Cell } from "../../game/types";
 
 export async function difficultyCallback(
     ctx: CallbackQueryContext<Context>,
@@ -35,11 +36,21 @@ export async function difficultyCallback(
         { id: user.id, chatId: user.chatId, username: user.username },
         difficulty
     );
+    if (!game) {
+        return;
+    }
     const { boardToShow, currentTurn } = computeInitialBoard(game);
     const keyboard = buildGameKeyboard(boardToShow, game.id);
+    keyboard.row();
+    keyboard.text(BUTTON_LABELS.RETURN, `${CALLBACK_PREFIXES.RETURN}${game.id}`);
+
     const userSymbol = getSymbolEmoji(getPlayerById(game, user.id)!.symbol);
-    const message = await sendDifficultyMessage(ctx, userSymbol, keyboard);
-    updateGameState(game, boardToShow, currentTurn, user.id, message.message_id);
+
+    await ctx.editMessageText(MESSAGES.YOU_ARE_SYMBOL(userSymbol), {
+        reply_markup: keyboard,
+    });
+
+    updateGameState(game, boardToShow, currentTurn, user.id, ctx.msgId!);
     await ctx.answerCallbackQuery();
 }
 
@@ -77,16 +88,6 @@ function computeInitialBoard(game: Game): { boardToShow: Cell[][]; currentTurn: 
         boardToShow: updatedBoard,
         currentTurn: nextTurn,
     };
-}
-
-async function sendDifficultyMessage(
-    ctx: CallbackQueryContext<Context>,
-    symbol: string,
-    keyboard: InlineKeyboard
-) {
-    return ctx.reply(MESSAGES.YOU_ARE_SYMBOL(symbol), {
-        reply_markup: keyboard,
-    });
 }
 
 function updateGameState(

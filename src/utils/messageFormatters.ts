@@ -1,14 +1,11 @@
 import { Game } from "../game/types";
-import { getHeadToHeadStats } from "../database/models/playerStatsModel";
+import { getHeadToHeadStats } from "../solana";
 
 export async function getStatsText(currentPlayerId: number, opponentId: number): Promise<string> {
     const stats = await getHeadToHeadStats(currentPlayerId, opponentId);
 
     if (stats) {
-        const isCurrentPlayerMin = currentPlayerId < opponentId;
-        const myWins = isCurrentPlayerMin ? stats.player1Wins : stats.player2Wins;
-        const theirWins = isCurrentPlayerMin ? stats.player2Wins : stats.player1Wins;
-        return `Record: ${myWins}-${theirWins}-${stats.draws} (W-L-D)`;
+        return `Record: ${stats.player1Wins}-${stats.player2Wins}-${stats.draws} (W-L-D)`;
     } else {
         return `Record: 0-0-0 (W-L-D)`;
     }

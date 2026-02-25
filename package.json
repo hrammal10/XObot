@@ -17,34 +17,36 @@
         "lint:fix": "eslint . --fix",
         "format": "prettier . --write",
         "format:check": "prettier . --check",
-        "check": "eslint . && prettier . --check"
+        "check": "eslint . && prettier . --check",
+        "inspect": "ts-node src/solana/inspect.ts",
+        "inspect:leaderboard": "ts-node -e \"require('dotenv/config'); const {getLeaderboard}=require('./src/solana/client'); getLeaderboard().then(e=>e.forEach((x,i)=>console.log(i+1+'.',x.username,'W:'+x.totalWins,'L:'+x.totalLosses,'D:'+x.totalDraws)))\"",
+        "inspect:history": "ts-node -e \"require('dotenv/config'); const id=Number(process.argv[1]); const {getPlayerHistory}=require('./src/solana/client'); getPlayerHistory(id).then(g=>g.forEach((x,i)=>console.log(i+1+'.',x.gameMode,x.status,'Winner:',String(x.winnerTelegramId??'draw'),'Board:',x.boardState)))\""
     },
     "keywords": [],
     "author": "",
     "license": "ISC",
     "type": "commonjs",
     "dependencies": {
-        "@prisma/client": "^6.19.2",
+        "@coral-xyz/anchor": "^0.32.1",
+        "@solana/web3.js": "^1.98.4",
+        "bs58": "^6.0.0",
         "dotenv": "^17.2.3",
         "grammy": "^1.39.3",
-        "pg": "^8.17.2",
-        "prisma": "^6.19.2",
         "winston": "^3.19.0"
     },
     "devDependencies": {
-        "@eslint/js": "^9.39.2",
-        "@types/node": "^25.0.9",
-        "@types/pg": "^8.16.0",
-        "@typescript-eslint/eslint-plugin": "^8.54.0",
-        "@typescript-eslint/parser": "^8.54.0",
-        "eslint": "^9.39.2",
-        "eslint-config-prettier": "^10.1.8",
-        "eslint-plugin-prettier": "^5.5.5",
-        "eslint-plugin-unused-imports": "^4.3.0",
+        "@eslint/js": "^8.56.0",
+        "@types/bn.js": "^5.1.5",
+        "@types/node": "^22.10.0",
+        "@typescript-eslint/eslint-plugin": "^6.21.0",
+        "@typescript-eslint/parser": "^6.21.0",
+        "eslint": "^8.56.0",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-prettier": "^5.1.0",
+        "eslint-plugin-unused-imports": "^3.0.0",
         "nodemon": "^3.1.11",
         "prettier": "^3.8.1",
         "ts-node": "^10.9.2",
-        "typescript": "^5.9.3",
-        "typescript-eslint": "^8.54.0"
+        "typescript": "^5.9.3"
     }
 }
