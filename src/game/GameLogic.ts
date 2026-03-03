@@ -32,9 +32,9 @@ export function checkWinner(board: Cell[][], row: number, col: number): PlayerSy
     const player = board[row][col];
     if (!player) return null;
 
-    const size = board.length;
-    const isOnMainDiagonal = row === col;
-    const isOnAntiDiagonal = row + col === size - 1;
+    const isSquare = board.length === board[0].length;
+    const isOnMainDiagonal = isSquare && row === col;
+    const isOnAntiDiagonal = isSquare && row + col === board.length - 1;
 
     if (checkRow(board, row, player)) {
         return player;
@@ -149,12 +149,14 @@ function evaluateBoard(
     return 0;
 }
 
-// minimax algorithm that determines recurses through all possible simulations of bot decisions
-// added depth to minimax to pick the cell that produces a win with the least amount of moves possible
-// EXPLANATION: for anyone reading this and doesn't understand depth, think about the current state of the board as a parent node and whatever cell the bot picks as a node branching from it
-// the bot will simulate every single possible cell decision it could take and it will see how many moves it will take to win (simulating opponent's decision as well)
-// and "depth" here will represent the how "deep" we are into the tree, and then the bot will ultimately pick the path from the parent node (current state of board) to the node
-// representing the winning board
+// Minimax with alpha-beta pruning.
+// "depth" represents how deep we are into the game tree from the current board state.
+// Alpha tracks the best score the maximizer can guarantee; beta tracks the best the
+// minimizer can guarantee. When beta <= alpha we prune (skip remaining siblings),
+// producing the same result as full minimax but much faster.
+// MAX_DEPTH caps exploration so larger boards don't hang.
+
+const MAX_DEPTH = 9;
 
 function minimax(
     board: Cell[][],
@@ -162,7 +164,9 @@ function minimax(
     botSymbol: PlayerSymbol,
     lastRow: number,
     lastCol: number,
-    depth: number
+    depth: number,
+    alpha: number,
+    beta: number
 ): number {
     const winner = checkWinner(board, lastRow, lastCol);
     if (winner) {
@@ -171,18 +175,36 @@ function minimax(
     if (checkDraw(board)) {
         return 0;
     }
+    if (depth >= MAX_DEPTH) {
+        return 0;
+    }
 
     const emptyPos = getEmptyPositions(board);
     const symbol = isMaximizing ? botSymbol : botSymbol === "X" ? "O" : "X";
-    const scores = emptyPos.map(([r, c]) => {
-        const newBoard = makeMove(board, r, c, symbol);
-        return minimax(newBoard, !isMaximizing, botSymbol, r, c, depth + 1);
-    });
 
-    return isMaximizing ? Math.max(...scores) : Math.min(...scores);
+    if (isMaximizing) {
+        let maxScore = -Infinity;
+        for (const [r, c] of emptyPos) {
+            const newBoard = makeMove(board, r, c, symbol);
+            const score = minimax(newBoard, false, botSymbol, r, c, depth + 1, alpha, beta);
+            maxScore = Math.max(maxScore, score);
+            alpha = Math.max(alpha, score);
+            if (beta <= alpha) break;
+        }
+        return maxScore;
+    } else {
+        let minScore = Infinity;
+        for (const [r, c] of emptyPos) {
+            const newBoard = makeMove(board, r, c, symbol);
+            const score = minimax(newBoard, true, botSymbol, r, c, depth + 1, alpha, beta);
+            minScore = Math.min(minScore, score);
+            beta = Math.min(beta, score);
+            if (beta <= alpha) break;
+        }
+        return minScore;
+    }
 }
 
-// depending on the minimax algorithm, we find the best move for the bot to make
 function findBestMove(board: Cell[][], botSymbol: PlayerSymbol): [number, number] {
     const emptyPos = getEmptyPositions(board);
     if (emptyPos.length === 0) {
@@ -190,15 +212,17 @@ function findBestMove(board: Cell[][], botSymbol: PlayerSymbol): [number, number
     }
 
     let bestScore = -Infinity;
+    let alpha = -Infinity;
+    const beta = Infinity;
     let bestPosition: [number, number] = [-1, -1];
-    for (const position of emptyPos) {
-        const [r, c] = position;
+    for (const [r, c] of emptyPos) {
         const newBoard = makeMove(board, r, c, botSymbol);
-        const score = minimax(newBoard, false, botSymbol, r, c, 0);
+        const score = minimax(newBoard, false, botSymbol, r, c, 0, alpha, beta);
         if (score > bestScore) {
             bestScore = score;
             bestPosition = [r, c];
         }
+        alpha = Math.max(alpha, score);
     }
     return bestPosition;
 }

@@ -15,14 +15,30 @@ import {
 import { buildGameKeyboard } from "../../ui/keyboard";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
 import { BUTTON_LABELS } from "../../constants/buttons";
-import {
-    initPlayer,
-    saveGame,
-    updateHeadToHeadStats,
-    updateLeaderboard,
-} from "../../solana";
+import { initPlayer, saveGame, updateHeadToHeadStats, updateLeaderboard } from "../../solana";
 import { formatPvPMessage } from "../../utils/messageFormatters";
 import logger from "../../utils/logger";
+
+async function retryAsync(
+    fn: () => Promise<void>,
+    maxRetries: number,
+    baseDelayMs: number
+): Promise<void> {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            await fn();
+            return;
+        } catch (e) {
+            if (attempt === maxRetries) {
+                logger.error(`Solana write failed after ${maxRetries + 1} attempts, giving up:`, e);
+                return;
+            }
+            const delay = baseDelayMs * 2 ** attempt;
+            logger.warn(`Solana write attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+    }
+}
 
 interface MoveResult {
     updatedState: {
@@ -39,6 +55,9 @@ interface MoveResult {
 
 export async function moveCallback(ctx: CallbackQueryContext<Context>, bot: Bot) {
     const { gameId, row, col } = parseMoveData(ctx.callbackQuery.data);
+    if (!gameId || isNaN(row) || isNaN(col)) {
+        return ctx.answerCallbackQuery();
+    }
     const game = getGame(gameId);
 
     if (!game) {
@@ -84,7 +103,7 @@ function applyPlayerMove(game: Game, row: number, col: number, userId: number): 
     const immediateWinner = checkWinner(board, row, col);
     if (immediateWinner) {
         status = "won";
-        winner = currentPlayer.id!;
+        winner = userId;
         statusText = game.mode === "pve" ? MESSAGES.YOU_WIN : MESSAGES.SYMBOL_WINS(immediateWinner);
     } else if (checkDraw(board)) {
         status = "draw";
@@ -114,14 +133,16 @@ function applyBotMove(game: Game, board: Cell[][], turnIndex: number, userId: nu
 
     if (!bot) return { board, status: game.status, winner: undefined, turnIndex, statusText: "" };
 
-    const [r, c] = getBotMove(board, game.difficulty!, bot.symbol);
+    const [r, c] = getBotMove(board, game.difficulty ?? "easy", bot.symbol);
+    if (r === -1 || c === -1)
+        return { board, status: game.status, winner: undefined, turnIndex, statusText: "" };
     board = makeMove(board, r, c, bot.symbol);
     const botWinner = checkWinner(board, r, c);
     if (botWinner) {
         return {
             board,
             status: "won",
-            winner: bot.id!,
+            winner: undefined,
             turnIndex,
             statusText: MESSAGES.MASTER_WINS,
         };
@@ -135,7 +156,15 @@ function applyBotMove(game: Game, board: Cell[][], turnIndex: number, userId: nu
             statusText: MESSAGES.DRAW,
         };
     }
-    const userPlayer = getPlayerById(game, userId)!;
+    const userPlayer = getPlayerById(game, userId);
+    if (!userPlayer)
+        return {
+            board,
+            status: "playing" as GameStatus,
+            winner: undefined,
+            turnIndex,
+            statusText: "",
+        };
     return {
         board,
         status: "playing" as GameStatus,
@@ -152,7 +181,11 @@ async function handlePostMove(
     result: MoveResult
 ): Promise<void> {
     const { board, status, winner, statusText } = result;
-    const game = getGame(gameId)!;
+    const game = getGame(gameId);
+    if (!game) {
+        logger.error(`handlePostMove: game ${gameId} not found after move`);
+        return;
+    }
     const keyboard = buildGameKeyboard(board, gameId);
     if (status === "won" || status === "draw") {
         addRematchButton(keyboard, game);
@@ -188,12 +221,20 @@ async function handleGameCompletion(
 
     const p1 = game.players[0];
     const p2 = game.players[1];
+
+    if (!p1?.id || !p2?.id) {
+        logger.error("handleGameCompletion: player IDs missing for PvP game");
+        return;
+    }
+
+    const p1Id = p1.id;
+    const p2Id = p2.id;
     const boardState = board.map((row) => row.join(",")).join(";");
 
-    try {
+    const saveOperations = async () => {
         await Promise.all([
-            initPlayer(p1.id!, p1.username ?? "unknown"),
-            initPlayer(p2.id!, p2.username ?? "unknown"),
+            initPlayer(p1Id, p1.username ?? "unknown"),
+            initPlayer(p2Id, p2.username ?? "unknown"),
         ]);
 
         await saveGame({
@@ -201,42 +242,41 @@ async function handleGameCompletion(
             boardState,
             winnerTelegramId: winner,
             status,
-            player1TelegramId: p1.id!,
-            player2TelegramId: p2.id!,
+            player1TelegramId: p1Id,
+            player2TelegramId: p2Id,
             player1Symbol: p1.symbol,
             player2Symbol: p2.symbol,
-            player1IsWinner: p1.id === winner,
-            player2IsWinner: p2.id === winner,
+            player1IsWinner: p1Id === winner,
+            player2IsWinner: p2Id === winner,
         });
 
         const h2hResult =
-            winner === null ? "draw" : winner === p1.id ? "player1_win" : "player2_win";
+            winner === null ? "draw" : winner === p1Id ? "player1_win" : "player2_win";
         await updateHeadToHeadStats(
-            p1.id!,
-            p2.id!,
+            p1Id,
+            p2Id,
             h2hResult as "player1_win" | "player2_win" | "draw"
         );
 
         if (status === "draw") {
             await Promise.all([
-                updateLeaderboard(p1.id!, p1.username ?? "unknown", "draw"),
-                updateLeaderboard(p2.id!, p2.username ?? "unknown", "draw"),
+                updateLeaderboard(p1Id, p1.username ?? "unknown", "draw"),
+                updateLeaderboard(p2Id, p2.username ?? "unknown", "draw"),
             ]);
-        } else {
-            const winnerId = winner!;
-            const loserId = winnerId === p1.id ? p2.id! : p1.id!;
+        } else if (winner) {
+            const loserId = winner === p1Id ? p2Id : p1Id;
             const winnerUsername =
-                winnerId === p1.id ? (p1.username ?? "unknown") : (p2.username ?? "unknown");
+                winner === p1Id ? (p1.username ?? "unknown") : (p2.username ?? "unknown");
             const loserUsername =
-                loserId === p1.id ? (p1.username ?? "unknown") : (p2.username ?? "unknown");
+                loserId === p1Id ? (p1.username ?? "unknown") : (p2.username ?? "unknown");
             await Promise.all([
-                updateLeaderboard(winnerId, winnerUsername, "win"),
+                updateLeaderboard(winner, winnerUsername, "win"),
                 updateLeaderboard(loserId, loserUsername, "loss"),
             ]);
         }
-    } catch (e) {
-        logger.error("Failed to save game to Solana:", e);
-    }
+    };
+
+    await retryAsync(saveOperations, 3, 1000);
 }
 
 async function updatePvPMessages(

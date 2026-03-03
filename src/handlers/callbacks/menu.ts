@@ -1,17 +1,15 @@
 import { CallbackQueryContext, Context, Bot, InlineKeyboard } from "grammy";
+import { buildDifficultyKeyboard } from "../../ui/keyboard";
 import { MESSAGES } from "../../constants/userMessages";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
 import { BUTTON_LABELS } from "../../constants/buttons";
 import { BOARD } from "../../constants/gameConfig";
 import { getSymbolEmoji } from "../../constants/symbols";
 import { createGame, updateGame } from "../../game/gameManager";
-import { getPlayerById } from "../../utils/playerUtils";
+import { extractUser, getPlayerById } from "../../utils/playerUtils";
 import { Player } from "../../game/types";
 
-export async function menuPvECallback(
-    ctx: CallbackQueryContext<Context>,
-    bot: Bot
-): Promise<void> {
+export async function menuPvECallback(ctx: CallbackQueryContext<Context>, bot: Bot): Promise<void> {
     if (!ctx.from) {
         await ctx.answerCallbackQuery({ text: MESSAGES.USER_NOT_IDENTIFIED, show_alert: true });
         return;
@@ -26,10 +24,7 @@ export async function menuPvECallback(
     await ctx.answerCallbackQuery();
 }
 
-export async function menuPvPCallback(
-    ctx: CallbackQueryContext<Context>,
-    bot: Bot
-): Promise<void> {
+export async function menuPvPCallback(ctx: CallbackQueryContext<Context>, bot: Bot): Promise<void> {
     if (!ctx.from) {
         await ctx.answerCallbackQuery({ text: MESSAGES.USER_NOT_IDENTIFIED, show_alert: true });
         return;
@@ -90,14 +85,6 @@ export async function menuHomeCallback(
     await ctx.answerCallbackQuery();
 }
 
-function extractUser(ctx: CallbackQueryContext<Context>) {
-    return {
-        id: ctx.from!.id,
-        chatId: ctx.chat?.id,
-        username: ctx.from!.username,
-    };
-}
-
 function updateCreatorMessageId(
     gameId: string,
     players: Player[],
@@ -112,14 +99,6 @@ export function buildHomeKeyboard(): InlineKeyboard {
     return new InlineKeyboard()
         .text(BUTTON_LABELS.PLAY_VS_BOT, CALLBACK_PREFIXES.MENU_PVE)
         .text(BUTTON_LABELS.CHALLENGE_FRIEND, CALLBACK_PREFIXES.MENU_PVP);
-}
-
-function buildDifficultyKeyboard(): InlineKeyboard {
-    return new InlineKeyboard()
-        .text(BUTTON_LABELS.EASY, `${CALLBACK_PREFIXES.DIFFICULTY}easy`)
-        .text(BUTTON_LABELS.HARD, `${CALLBACK_PREFIXES.DIFFICULTY}hard`)
-        .row()
-        .text(BUTTON_LABELS.RETURN, CALLBACK_PREFIXES.MENU_HOME);
 }
 
 function buildInviteKeyboard(gameId: string): InlineKeyboard {

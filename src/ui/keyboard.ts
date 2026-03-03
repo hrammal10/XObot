@@ -2,6 +2,7 @@ import { InlineKeyboard } from "grammy";
 import { Cell } from "../game/types";
 import { CALLBACK_PREFIXES } from "../constants/callback";
 import { BOARD } from "../constants/gameConfig";
+import { BUTTON_LABELS } from "../constants/buttons";
 
 const CELL_EMOJI_MAP: Record<NonNullable<Cell>, string> = {
     X: BOARD.X_CELL_EMOJI,
@@ -34,4 +35,12 @@ export function buildGameKeyboard(board: Cell[][], gameId: string): InlineKeyboa
     const keyboard = new InlineKeyboard();
     board.forEach((row, rowIndex) => addRowToKeyboard(keyboard, row, rowIndex, gameId));
     return keyboard;
+}
+
+export function buildDifficultyKeyboard(): InlineKeyboard {
+    return new InlineKeyboard()
+        .text(BUTTON_LABELS.EASY, `${CALLBACK_PREFIXES.DIFFICULTY}easy`)
+        .text(BUTTON_LABELS.HARD, `${CALLBACK_PREFIXES.DIFFICULTY}hard`)
+        .row()
+        .text(BUTTON_LABELS.RETURN, CALLBACK_PREFIXES.MENU_HOME);
 }

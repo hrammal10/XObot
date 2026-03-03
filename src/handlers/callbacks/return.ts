@@ -1,13 +1,10 @@
-import { CallbackQueryContext, Context, Bot, InlineKeyboard } from "grammy";
+import { CallbackQueryContext, Context, Bot } from "grammy";
 import { MESSAGES } from "../../constants/userMessages";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
-import { BUTTON_LABELS } from "../../constants/buttons";
 import { getGame, deleteGame } from "../../game/gameManager";
+import { buildDifficultyKeyboard } from "../../ui/keyboard";
 
-export async function returnCallback(
-    ctx: CallbackQueryContext<Context>,
-    bot: Bot
-): Promise<void> {
+export async function returnCallback(ctx: CallbackQueryContext<Context>, bot: Bot): Promise<void> {
     if (!ctx.from) {
         await ctx.answerCallbackQuery({
             text: MESSAGES.USER_NOT_IDENTIFIED,
@@ -38,12 +35,4 @@ function cleanupActiveGame(gameId: string): void {
     if (game) {
         deleteGame(gameId);
     }
-}
-
-function buildDifficultyKeyboard(): InlineKeyboard {
-    return new InlineKeyboard()
-        .text(BUTTON_LABELS.EASY, `${CALLBACK_PREFIXES.DIFFICULTY}easy`)
-        .text(BUTTON_LABELS.HARD, `${CALLBACK_PREFIXES.DIFFICULTY}hard`)
-        .row()
-        .text(BUTTON_LABELS.RETURN, CALLBACK_PREFIXES.MENU_HOME);
 }

@@ -11,8 +11,4 @@ export {
     getAllPlayers,
 } from "./client";
 
-export type {
-    HeadToHeadStatsAccount,
-    PlayerLeaderboardAccount,
-    GameRecordAccount,
-} from "./client";
+export type { HeadToHeadStatsAccount, PlayerLeaderboardAccount, GameRecordAccount } from "./client";

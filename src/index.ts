@@ -12,6 +12,7 @@ import { inviteCallback } from "./handlers/callbacks/invite";
 import { returnCallback } from "./handlers/callbacks/return";
 import { menuPvECallback, menuPvPCallback, menuHomeCallback } from "./handlers/callbacks/menu";
 import { CALLBACK_PREFIXES } from "./constants/callback";
+import logger from "./utils/logger";
 
 const bot = new Bot(process.env.BOT_TOKEN!);
 
@@ -29,13 +30,9 @@ bot.callbackQuery(new RegExp(`^${CALLBACK_PREFIXES.DIFFICULTY}`), (ctx) =>
 );
 bot.callbackQuery(new RegExp(`^${CALLBACK_PREFIXES.MOVE}`), (ctx) => moveCallback(ctx, bot));
 bot.inlineQuery(new RegExp(`^${CALLBACK_PREFIXES.INVITE}`), (ctx) => inviteCallback(ctx, bot));
-bot.callbackQuery(new RegExp(`^${CALLBACK_PREFIXES.REMATCH}`), (ctx) =>
-    rematchCallback(ctx, bot)
-);
-bot.callbackQuery(new RegExp(`^${CALLBACK_PREFIXES.RETURN}`), (ctx) =>
-    returnCallback(ctx, bot)
-);
+bot.callbackQuery(new RegExp(`^${CALLBACK_PREFIXES.REMATCH}`), (ctx) => rematchCallback(ctx, bot));
+bot.callbackQuery(new RegExp(`^${CALLBACK_PREFIXES.RETURN}`), (ctx) => returnCallback(ctx, bot));
 
-bot.catch((err) => console.error("Bot error:", err));
+bot.catch((err) => logger.error("Bot error:", err));
 bot.start();
-console.log("bot started successfully.");
+logger.info("bot started successfully.");

@@ -4,7 +4,7 @@ import { MESSAGES } from "../../constants/userMessages";
 import { getSymbolEmoji } from "../../constants/symbols";
 import { BOARD } from "../../constants/gameConfig";
 import { createGame, updateGame } from "../../game/gameManager";
-import { getPlayerById } from "../../utils/playerUtils";
+import { extractUser, getPlayerById } from "../../utils/playerUtils";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
 import { Player } from "../../game/types";
 
@@ -19,7 +19,7 @@ export async function challengeCommand(ctx: CommandContext<Context>, bot: Bot): 
     }
 
     const user = extractUser(ctx);
-    const game = createPvPGame(user);
+    const game = createPvPGame({ ...user, chatId: user.chatId! });
 
     if (!game) {
         await ctx.reply(MESSAGES.GAME_CREATION_FAILED);
@@ -42,14 +42,6 @@ export async function challengeCommand(ctx: CommandContext<Context>, bot: Bot): 
     }
 
     updateCreatorMessageId(game.id, game.players, user.id, message.message_id);
-}
-
-function extractUser(ctx: CommandContext<Context>) {
-    return {
-        id: ctx.from!.id,
-        chatId: ctx.chat!.id,
-        username: ctx.from!.username,
-    };
 }
 
 function createPvPGame(user: { id: number; chatId: number; username?: string }) {

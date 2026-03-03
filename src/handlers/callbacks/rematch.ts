@@ -59,7 +59,11 @@ async function handlePvERematch(
     keyboard.row();
     keyboard.text(BUTTON_LABELS.RETURN, `${CALLBACK_PREFIXES.RETURN}${newGame.id}`);
 
-    const userPlayer = getPlayerById(newGame, userId)!;
+    const userPlayer = getPlayerById(newGame, userId);
+    if (!userPlayer) {
+        await ctx.answerCallbackQuery({ text: MESSAGES.UNEXPECTED_ERROR, show_alert: true });
+        return;
+    }
     const userSymbol = getSymbolEmoji(userPlayer.symbol);
     await ctx.editMessageText(MESSAGES.REMATCH_WITH_SYMBOL(userSymbol), {
         reply_markup: keyboard,
@@ -81,7 +85,10 @@ function computeInitialPvEBoard(newGame: Game): { boardToShow: Cell[][]; current
     if (!botPlayer || botPlayer.symbol !== "X") {
         return { boardToShow: newGame.board, currentTurn: newGame.currentTurn };
     }
-    const [r, c] = getBotMove(newGame.board, newGame.difficulty!, "X");
+    const [r, c] = getBotMove(newGame.board, newGame.difficulty ?? "easy", "X");
+    if (r === -1 || c === -1) {
+        return { boardToShow: newGame.board, currentTurn: newGame.currentTurn };
+    }
     const updatedBoard = makeMove(newGame.board, r, c, "X");
     const nextTurn = getNextTurnIndex({ ...newGame, currentTurn: newGame.currentTurn });
     return { boardToShow: updatedBoard, currentTurn: nextTurn };
@@ -200,7 +207,11 @@ async function startNewPvPGame(
     });
 
     updateGame(newGame.id, { players: updatedPlayers, status: "playing" });
-    const freshGame = getGame(newGame.id)!;
+    const freshGame = getGame(newGame.id);
+    if (!freshGame) {
+        await ctx.answerCallbackQuery({ text: MESSAGES.GAME_NOT_FOUND, show_alert: true });
+        return;
+    }
     const keyboard = buildGameKeyboard(freshGame.board, freshGame.id);
 
     await Promise.all([

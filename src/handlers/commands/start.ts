@@ -2,7 +2,7 @@ import { CommandContext, Context, Bot } from "grammy";
 import { MESSAGES } from "../../constants/userMessages";
 import { getSymbolEmoji } from "../../constants/symbols";
 import { joinGame, updateGame, getGame } from "../../game/gameManager";
-import { getPlayerById, getOpponent } from "../../utils/playerUtils";
+import { extractUser, getPlayerById, getOpponent } from "../../utils/playerUtils";
 import { buildGameKeyboard } from "../../ui/keyboard";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
 import { initPlayer } from "../../solana";
@@ -36,13 +36,21 @@ export async function startCommand(ctx: CommandContext<Context>, bot: Bot): Prom
     }
 
     const user = extractUser(ctx);
-    const joinResult = joinGame(gameId, user.id, user.chatId, user.username);
+    const joinResult = joinGame(gameId, user.id, user.chatId!, user.username);
     if (!joinResult.success) {
         await ctx.reply(joinResult.error ?? MESSAGES.UNEXPECTED_ERROR);
         return;
     }
-    const game = joinResult.game!;
-    const joiner = getPlayerById(game, user.id)!;
+    const game = joinResult.game;
+    if (!game) {
+        await ctx.reply(MESSAGES.GAME_NOT_FOUND);
+        return;
+    }
+    const joiner = getPlayerById(game, user.id);
+    if (!joiner || !joiner.id) {
+        await ctx.reply(MESSAGES.UNEXPECTED_ERROR);
+        return;
+    }
     const opponent = getOpponent(game, user.id);
     await ensurePlayersExist(joiner, opponent);
     const statsText = await buildStatsText(joiner, opponent);
@@ -56,7 +64,7 @@ export async function startCommand(ctx: CommandContext<Context>, bot: Bot): Prom
             game,
             keyboard,
         });
-        await updateJoinerMessageId(gameId, joinerMessage.message_id, joiner.id!);
+        await updateJoinerMessageId(gameId, joinerMessage.message_id, joiner.id);
         await updateCreatorMessage(bot, {
             game,
             joiner,
@@ -71,14 +79,6 @@ export async function startCommand(ctx: CommandContext<Context>, bot: Bot): Prom
 
 function extractGameId(payload: string): string {
     return payload.slice(CALLBACK_PREFIXES.JOIN.length);
-}
-
-function extractUser(ctx: CommandContext<Context>) {
-    return {
-        id: ctx.from!.id,
-        chatId: ctx.chat!.id,
-        username: ctx.from!.username ?? undefined,
-    };
 }
 
 async function ensurePlayersExist(joiner: Player, opponent?: Player) {

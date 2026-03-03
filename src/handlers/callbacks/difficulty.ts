@@ -3,7 +3,7 @@ import { MESSAGES } from "../../constants/userMessages";
 import { getSymbolEmoji } from "../../constants/symbols";
 import { BOARD } from "../../constants/gameConfig";
 import { createGame, updateGame } from "../../game/gameManager";
-import { getPlayerById, getNextTurnIndex } from "../../utils/playerUtils";
+import { extractUser, getPlayerById, getNextTurnIndex } from "../../utils/playerUtils";
 import { getBotMove, makeMove } from "../../game/gameLogic";
 import { buildGameKeyboard } from "../../ui/keyboard";
 import { CALLBACK_PREFIXES } from "../../constants/callback";
@@ -32,6 +32,10 @@ export async function difficultyCallback(
     }
 
     const difficulty = extractDifficulty(ctx.callbackQuery.data);
+    if (!difficulty) {
+        await ctx.answerCallbackQuery({ text: MESSAGES.UNEXPECTED_ERROR, show_alert: true });
+        return;
+    }
     const game = createPvEGame(
         { id: user.id, chatId: user.chatId, username: user.username },
         difficulty
@@ -44,7 +48,12 @@ export async function difficultyCallback(
     keyboard.row();
     keyboard.text(BUTTON_LABELS.RETURN, `${CALLBACK_PREFIXES.RETURN}${game.id}`);
 
-    const userSymbol = getSymbolEmoji(getPlayerById(game, user.id)!.symbol);
+    const userPlayer = getPlayerById(game, user.id);
+    if (!userPlayer) {
+        await ctx.answerCallbackQuery({ text: MESSAGES.GAME_CREATION_FAILED, show_alert: true });
+        return;
+    }
+    const userSymbol = getSymbolEmoji(userPlayer.symbol);
 
     await ctx.editMessageText(MESSAGES.YOU_ARE_SYMBOL(userSymbol), {
         reply_markup: keyboard,
@@ -54,16 +63,11 @@ export async function difficultyCallback(
     await ctx.answerCallbackQuery();
 }
 
-function extractUser(ctx: CallbackQueryContext<Context>) {
-    return {
-        id: ctx.from!.id,
-        chatId: ctx.chat?.id,
-        username: ctx.from!.username,
-    };
-}
+const VALID_DIFFICULTIES = new Set<string>(["easy", "hard"]);
 
-function extractDifficulty(data: string): "easy" | "hard" {
-    return data.slice(CALLBACK_PREFIXES.DIFFICULTY.length) as "easy" | "hard";
+function extractDifficulty(data: string): "easy" | "hard" | null {
+    const value = data.slice(CALLBACK_PREFIXES.DIFFICULTY.length);
+    return VALID_DIFFICULTIES.has(value) ? (value as "easy" | "hard") : null;
 }
 
 function createPvEGame(
@@ -81,7 +85,10 @@ function computeInitialBoard(game: Game): { boardToShow: Cell[][]; currentTurn: 
             currentTurn: game.currentTurn,
         };
     }
-    const [r, c] = getBotMove(game.board, game.difficulty!, "X");
+    const [r, c] = getBotMove(game.board, game.difficulty ?? "easy", "X");
+    if (r === -1 || c === -1) {
+        return { boardToShow: game.board, currentTurn: game.currentTurn };
+    }
     const updatedBoard = makeMove(game.board, r, c, "X");
     const nextTurn = getNextTurnIndex({ ...game, currentTurn: game.currentTurn });
     return {

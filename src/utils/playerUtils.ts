@@ -1,5 +1,14 @@
+import { Context } from "grammy";
 import { Game, Player } from "../game/types";
 import { updateGame } from "../game/gameManager";
+
+export function extractUser(ctx: Context) {
+    return {
+        id: ctx.from!.id,
+        chatId: ctx.chat?.id,
+        username: ctx.from!.username,
+    };
+}
 
 export function getPlayerById(game: Game, userId: number): Player | undefined {
     return game.players.find((p) => p.id === userId);
@@ -10,10 +19,19 @@ export function getOpponent(game: Game, userId: number): Player | undefined {
 }
 
 export function getNextTurnIndex(game: Game): number {
-    let nextIndex = (game.currentTurn + 1) % game.players.length;
+    const playerCount = game.players.length;
+    if (playerCount === 0) {
+        return 0;
+    }
+    let nextIndex = (game.currentTurn + 1) % playerCount;
 
+    let attempts = 0;
     while (game.players[nextIndex].id === null || game.players[nextIndex].id === undefined) {
-        nextIndex = (nextIndex + 1) % game.players.length;
+        nextIndex = (nextIndex + 1) % playerCount;
+        attempts++;
+        if (attempts >= playerCount) {
+            return game.currentTurn; // no valid next player — stay on current turn
+        }
     }
 
     return nextIndex;

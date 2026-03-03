@@ -41,12 +41,20 @@ export interface GameRecordAccount {
 
 const PROGRAM_ID = new PublicKey(SOLANA_CONFIG.PROGRAM_ID);
 
+let _cachedProvider: { provider: AnchorProvider; program: Program } | null = null;
+
 function getProvider(): { provider: AnchorProvider; program: Program } {
+    if (_cachedProvider) {
+        return _cachedProvider;
+    }
+
     const rpcUrl = process.env.SOLANA_RPC_URL || SOLANA_CONFIG.DEFAULT_RPC_URL;
     const connection = new Connection(rpcUrl, SOLANA_CONFIG.COMMITMENT);
 
     const secretKey = process.env.SOLANA_PRIVATE_KEY;
-    if (!secretKey) throw new Error("SOLANA_PRIVATE_KEY env var not set");
+    if (!secretKey) {
+        throw new Error("SOLANA_PRIVATE_KEY env var not set");
+    }
 
     const wallet = new anchor.Wallet(Keypair.fromSecretKey(bs58.decode(secretKey)));
 
@@ -56,7 +64,8 @@ function getProvider(): { provider: AnchorProvider; program: Program } {
 
     const program = new Program(idl as unknown as anchor.Idl, provider);
 
-    return { provider, program };
+    _cachedProvider = { provider, program };
+    return _cachedProvider;
 }
 
 function playerPDA(telegramId: number | bigint): [PublicKey, number] {
@@ -119,7 +128,9 @@ export async function initPlayer(telegramId: number, username: string): Promise<
             })
             .rpc();
         logger.info(`initPlayer(${telegramId}, "${username}") → tx: ${tx}`);
-        logger.info(`Explorer: https://explorer.solana.com/tx/${tx}?cluster=${SOLANA_CONFIG.CLUSTER}`);
+        logger.info(
+            `Explorer: https://explorer.solana.com/tx/${tx}?cluster=${SOLANA_CONFIG.CLUSTER}`
+        );
         return tx;
     } catch (e: any) {
         if (
@@ -277,7 +288,7 @@ export async function getLeaderboard(): Promise<PlayerLeaderboardAccount[]> {
     );
 
     entries.sort((a, b) => b.totalWins - a.totalWins);
-    return entries;
+    return entries.slice(0, 10);
 }
 
 export async function getPlayerHistory(telegramId: number): Promise<GameRecordAccount[]> {
@@ -310,7 +321,9 @@ export async function getPlayerUsername(telegramId: number): Promise<string | nu
     }
 }
 
-export async function getAllPlayers(): Promise<{ telegramId: BN; username: string; createdAt: BN }[]> {
+export async function getAllPlayers(): Promise<
+    { telegramId: BN; username: string; createdAt: BN }[]
+> {
     const { program } = getProvider();
     const allAccounts = await (program.account as any).playerAccount.all();
     return allAccounts.map((a: any) => a.account);

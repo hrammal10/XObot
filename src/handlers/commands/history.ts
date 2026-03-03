@@ -78,10 +78,7 @@ async function formatGameHistory(
     );
 }
 
-async function getOpponentInfo(
-    game: GameRecordAccount,
-    telegramId: number
-): Promise<string> {
+async function getOpponentInfo(game: GameRecordAccount, telegramId: number): Promise<string> {
     if (game.gameMode === "pve") {
         return MESSAGES.BOT_OPPONENT;
     }
